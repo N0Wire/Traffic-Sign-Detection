@@ -14,90 +14,102 @@ import numpy as np
 import torch
 import os
 import pandas as pd
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
+from skimage.color import rgb2gray
+from scipy.ndimage.interpolation import zoom
 from random import shuffle
 from skimage import exposure
+from skimage.feature import canny
+from tqdm import tqdm, trange
+from time import sleep
+
 
 class preprocessor:
     """
-    The preprocessor is created using all training images. It calculates
-    different values and has a method to preprocess an image file.
+    The preprocessor takes the images and improves them. It equalizes the histograms
+    of all channels for a better contrast and scales the images to the desired size.
+    
+    Arguments:  size - (y,x) tuple stating the size of processed image
+                do_canny -  Boolean stating whether Canny edge is wished (Caveat: Changes in
+                            network.py necessary!)
+                split - not used as of now
     """
-    def __init__(self, list_of_filepaths, do_canny=True, split="train"):
-        self.list_of_filepaths = list_of_filepaths
+    def __init__(self, size=(32,32), do_canny=True, split="train"):
         self.split = split
-        """
-        self.means = 0
-        self.percentiles = None
+        self.ysize_norm, self.xsize_norm = size
+        self.do_canny = do_canny
         
-        if split == "train":
-            # Calculate mean of all images for all images and the mean value for
-            # the 2- and 98-percientile of all images to bring all images to scale
-            image_means = []
-            image_percentiles = []
-            for path in list_of_filepaths:
-                image = misc.imread(path)
-                channel_means = []
-                channel_percentiles = []
-                for channel in image:
-                    # Calculate mean for every channel seperately
-                    mean = np.mean(channel)
-                    channel_means.append(mean)
-                    # Calculate percentiles for every channel
-                    percentile_2, percentile_98 = np.percentile(channel, (2, 98))
-                    channel_percentiles.append([percentile_2,percentile_98])
-            
-                image_means.append(channel_means)
-                image_percentiles.append(channel_percentiles)
-            
-            mean_red, mean_green, mean_blue = np.mean(image_means, axis=0)
-            means = [mean_red, mean_green, mean_blue]
-            percentiles = np.mean(image_percentiles, axis=0)
-            print(mean_red)
-        """          
-
     def calc_tensor(self, image):
-        """
-        # First we want to get the intensities to the mean values from the trainset
-        for i, channel in enumerate(image):
-            # Rescale means to mean determined in testimages
-            diff_mean = np.mean(channel)-means[i]
-            channel = channel - diff_mean
-            # Rescale range to mean range in testimages
-            p2, p98 = np.percentile(channel, (2, 98))
-            diff_p2 = p2 - percentiles[i][0]
-            diff_p98 = p98 - percentiles[i][1]
-            channel = exposure.rescale_intensity(channel, in_range=(p2, p98), out_range=(p2-diff_p2, p98-diff_p98))                
-            image[i] = channel
-        """
-                     
-        # On these normalized sets we equalize the histoograms to improve contrast         
-        for i, channel in enumerate(image):         
-            channel_eq = exposure.equalize_hist(channel)
-            image[i]=channel
-                
-        # Calculate Canny Edge detector
         
-        tensor = torch.Tensor(image).float()
+        # We perform histogram stretching to improve contrast         
+        
+        for i in range(image.shape[-1]):
+            channel = image[...,i]
+            # Contrast stretching
+            p2, p98 = np.percentile(channel, (2, 98))
+            channel_eq = exposure.rescale_intensity(channel, in_range=(p2, p98))
+            # Override channel
+            image[...,i]=channel_eq
+        
+        # Rescale the image
+        channels=[]
+        for i in range(image.shape[-1]):
+            channel = image[...,i]
+            yzoom = self.ysize_norm/channel.shape[0]
+            xzoom = self.xsize_norm/channel.shape[1]
+            channel = zoom(channel, (yzoom,xzoom))
+            channels.append(channel)
+        image=np.moveaxis(np.array(channels),(0,1,2),(2,0,1))
+        
+        # Calculate Canny Edge detector
+        if self.do_canny:
+            img_gray = rgb2gray(image)
+            img_gray = canny(img_gray, sigma=0.5, high_threshold=0.55, low_threshold=0.20, use_quantiles=True)
+        
+            # Add canny picture as 4th channel
+            image = np.concatenate((image,np.expand_dims(img_gray, axis=-1)), axis=-1)
+
+        image=np.moveaxis(image,(0,1,2),(1,2,0))
+        #tensor = torch.Tensor(image).float()
+        tensor = torch.Tensor(image)
         return tensor
 
 class image:
     """
-    
+    Arguements:     filepath - filepath to file
+                    classsid - ground truth class id
+                    preprocessor - preprocessor object
+                    img (optional) - image array, no pathfile has to be given then
+                                     (just input something)
+                                     
     tensor:     the preprocessed tensor of image
     class_id:   the groundtruth class id of image
+    numpy:      gives access to the array-type image
+    _data_:     returns data as dict, because DataLoader class needs dicts *sigh*
     """
-    def __init__(self, filepath, classid, preprocessor):
+    def __init__(self, filepath, classid, preprocessor, img=None):
         
         self.filepath = filepath
         self.classid = classid
-        image = misc.imread(self.filepath)
+        if img is None:
+            image = misc.imread(self.filepath)
+        else:
+            image = img
         self.tensor = preprocessor.calc_tensor(image)
         
     def __str__(self):
-        
+        # for print function
         return str(self.filepath) + " ; " + str(self.classid)
-        
+    
+    def numpy(self):
+        np_array = self.tensor.numpy()
+        np_array = np.moveaxis(np_array,0,-1)
+        return np_array.astype(np.uint8)
+    
+    def _data_(self):
+        return {"tensor": self.tensor, "id": self.classid , "filepath": self.filepath, "numpy": self.numpy()}
+
+    
 class dataset(Dataset):
     """
     The dataset is initialized with the filepaths and the split.
@@ -105,7 +117,7 @@ class dataset(Dataset):
     It saves a list of all elements of split in datatype image.
     The dataset can be subsampled randomly to decrease the amount of data
     """
-    def __init__(self, filepath, split="train", preproc=None):
+    def __init__(self, filepath, split="train", preproc_size=(32,32), preproc_canny=True):
         """
         Arguments:  filepath is path to /Images directory of dataset split
                     split is either train or test of dataset
@@ -116,7 +128,8 @@ class dataset(Dataset):
         self.list_images = []
         self.list_labels = []
 
-        self.preprocessor = preproc
+        self.preproc_size = preproc_size
+        self.preproc_canny = preproc_canny
         self.numelements = None
         self.split = split
         
@@ -133,17 +146,18 @@ class dataset(Dataset):
                     self.list_labels.append(class_id)
         
             # Generate preprocessor
-            if self.preprocessor is None:
-                self.preprocessor = preprocessor(self.list_paths, split)
-                    
+            print("Importing and preprocessing data from split: " + split)
+            self.preprocessor = preprocessor(size=self.preproc_size, do_canny=self.preproc_canny, split=self.split)
+            sleep(1) # sleep for nicer text output
+            
             # Generate trainlist of images
-            for i, path in enumerate(self.list_paths):
+            for i, path in enumerate(tqdm(self.list_paths, desc="Imageloader: ")):
                 self.list_images.append(image(path, self.list_labels[i], self.preprocessor))
     
         else:
             # Generate testlist of paths
             groundtruth_file = []
-            for dirpath, dirnames, filenames in os.walk(filepath_test):
+            for dirpath, dirnames, filenames in os.walk(filepath):
                 filenames.sort()
                 files = [ fi for fi in filenames if fi.endswith(".ppm") ]
                 groundtruth_file_temp = [fi for fi in filenames if fi.endswith(".csv")]
@@ -157,17 +171,19 @@ class dataset(Dataset):
             self.list_labels = gt['ClassId']
         
             # Generate preprocessor
-            self.preprocessor = preprocessor(self.list_paths, split)
-                    
+            print("Importing and preprocessing data from split: " + split)
+            self.preprocessor = preprocessor(size=self.preproc_size, do_canny=self.preproc_canny, split=self.split)
+            sleep(1) # sleep for nicer text output
+            
             # Generate testlist of images
-            for i, path in enumerate(self.list_paths):
+            for i, path in enumerate(tqdm(self.list_paths, desc="Imageloader: ")):
                 self.list_images.append(image(path, self.list_labels[i], self.preprocessor))
     
         print("Done importing data from split: " + split)
         return None
     
     def __getitem__(self, idx):
-        return self.list_images[idx]
+        return self.list_images[idx]._data_()
 
     def __len__(self):
         return len(self.list_labels)
@@ -251,6 +267,7 @@ class dataset(Dataset):
 # Testing stuff
         
 if __name__ == "__main__":
+    from matplotlib import pyplot as plt
     filepath_this_file = os.path.dirname(os.path.abspath(__file__))
     filepath_train = os.path.join(filepath_this_file + "/GTSRB/Final_Training/Images")
     filepath_test = os.path.join(filepath_this_file + "/GTSRB/Final_Test/Images")
@@ -262,11 +279,14 @@ if __name__ == "__main__":
     for i in range(10):
         print(trainset[i])
     """
+    
     testset = dataset(filepath_test, split="test")
     
     print(len(testset))
     for i in range(10):
         print(testset[i])
+        
+    
     
     testset.subset(0.1, True)
     
@@ -274,3 +294,38 @@ if __name__ == "__main__":
     for i in range(10):
         print(testset[i])
     
+    fig = plt.figure(figsize=(1.5,15), dpi=100)
+    for j in range(30):
+        
+        original = misc.imread(testset[j]['filepath'])
+        img = testset[j]['numpy'][...,:3]
+        canny = testset[j]['numpy'][...,3]
+        
+        
+        fig.add_subplot(30,3,3*j+1)
+        plt.imshow(original)
+        plt.xticks([]), plt.yticks([])
+        plt.title("Original \n" + str(original.shape), fontsize=3)    
+        
+        fig.add_subplot(30,3,3*j+2)
+        plt.imshow(img)
+        plt.title("Preprocessed \n" + str(img.shape), fontsize=3)    
+        plt.xticks([]), plt.yticks([])
+        
+        fig.add_subplot(30,3,3*j+3)
+        plt.imshow(canny, cmap="gray")
+        plt.title("Canny image", fontsize=3)    
+        plt.xticks([]), plt.yticks([])
+        
+    fig.tight_layout()
+
+    plt.show(fig)
+    fig.savefig('hog_test.pdf', dpi=300)
+
+
+    dataloader = DataLoader(testset, batch_size=32, shuffle=True)
+    for i, batch in enumerate(dataloader):
+        images_batch, ids_batch = \
+                batch['tensor'], batch['id']
+        #print(batch)
+        print(ids_batch)
