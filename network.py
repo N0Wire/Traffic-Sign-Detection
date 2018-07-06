@@ -12,6 +12,7 @@ This code partially contains code from the solution of exercise 8.
 
 import torch
 import os
+from torch.autograd import Variable
 import torch.nn as nn
 from torch.nn import Linear, Conv2d, ReLU, MaxPool2d, CrossEntropyLoss
 from torch.nn.init import xavier_normal_, normal_
@@ -20,7 +21,7 @@ import torchvision
 from torchvision import datasets, transforms
 from dataloader import *
 
-class CNN(nn.Module):
+class CNN_STN(nn.Module):
     '''
     Example from exercises
     '''
@@ -28,38 +29,87 @@ class CNN(nn.Module):
         '''
         Arguments: n_classes -  number of classes
         '''
-        super(CNN, self).__init__()
+        super(CNN_STN, self).__init__()
         
-        self.conv1 = Conv2d(4, 16, 3, stride=1, padding=1)
-        self.conv2 = Conv2d(16, 32, 3, stride=1, padding=1)
-        self.conv3 = Conv2d(32, 64, 3, stride=1, padding=1)
-        self.conv4 = Conv2d(64, 128, 3, stride=1, padding=1)
-
+        # Convolutional network
+        self.conv1 = Conv2d(4, 100, 7, stride=1, padding=1)
+        self.conv2 = Conv2d(100, 150, 5, stride=1, padding=1)
+        self.conv3 = Conv2d(150, 250, 5, stride=1, padding=2)
+        
+        # Maxpool
         self.maxpool = MaxPool2d(2, 2)
-
-        # input units: (28 / 2 / 2)**2 * 128 = 7**2 * 128 = 2**(2*5) * 2**7 = 2**17
-        #               \____________/     \
-        #             output tensor size    channels
-        self.n_units = 8*8*128
-        self.fc1 = Linear(self.n_units, 100)
-        self.fc2 = Linear(100, n_classes)
+        
+        # Fully connected network
+        # input units: ( [[[(32-4)/2] -2 ]/ 2] -0)**2 * 250 = 6**2 * 250
+        #               \__________________________/     \
+        #             output tensor size                channels
+        self.n_units = 6*6*250
+        self.fc1 = Linear(self.n_units, 300)
+        self.fc2 = Linear(300, n_classes)
 
         self.activation = ReLU()
-
         self.apply(initializer)
+        
+        # Spatial transformer localization-network
+        self.localization = nn.Sequential(
+                nn.Conv2d(4,32, kernel_size=5, stride=1, padding=0),
+                nn.ReLU(True),
+                nn.MaxPool2d(2, stride=2),
+                nn.Conv2d(32,40, kernel_size=5, stride=1, padding=0),
+                nn.ReLU(True),
+                nn.MaxPool2d(2, stride=2)
+        )
+        
+        # input units: ( [[(32-4)/2] -4 ]/ 2)**2 * 10 = 5**2 * 10
+        #               \__________________________/     \
+        #             output tensor size                channels
+        
+        # Regressor for the 2x3 affine matrix
+        self.fc_loc = nn.Sequential(
+            nn.Linear(40*5*5, 32),
+            nn.ReLU(True),
+            nn.Linear(32,2*3)
+        )
+        
+        # Initialize the weights/bias with identity transformation
+        self.fc_loc[2].weight.data.zero_()
+        self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+        
+        # Save stuff for evaluation:
+        self.databatch = None
+        self.list_thetas = []
+        self.theta=0
+        return None
+        
+    def stn(self, x): 
+        # Calculate convolutional output
+        temp = self.localization(x)
+        temp = temp.view(-1, 40*5*5)
+        
+        # Regress the transformation matrices
+        theta = self.fc_loc(temp)
+        theta = theta.view(-1,2,3)
+        
+        # Apply the transformation
+        grid = nn.functional.affine_grid(theta, x.size())
+        out = nn.functional.grid_sample(x, grid)
+        
+        return out
 
     def forward(self, x):
+        # Transform the input
+        out = self.stn(x)
+        
+        # Apply the CNN
         out = self.conv1(x)
         out = self.activation(out)
+        out = self.maxpool(out)
+        
         out = self.conv2(out)
         out = self.activation(out)
         out = self.maxpool(out)
-
         out = self.conv3(out)
         out = self.activation(out)
-        out = self.conv4(out)
-        out = self.activation(out)
-        out = self.maxpool(out)
         
         out = out.view(-1, self.n_units)
         
@@ -72,8 +122,79 @@ class CNN(nn.Module):
 
         return out
 
+    def save_stn(self):
+        with torch.no_grad():
+            # Get a batch of training data
+            data = self.databatch.data
 
-def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=True):
+            input_tensor = data
+            transformed_input_tensor = self.stn(input_tensor)
+            out_grid = convert_image_np(torchvision.utils.make_grid(transformed_input_tensor.narrow(1,0,3)).cpu())
+
+            self.list_thetas.append(out_grid)
+        
+        return None
+
+class CNN(nn.Module):
+    '''
+    Example from exercises
+    '''
+    def __init__(self, n_classes):
+        '''
+        Arguments: n_classes -  number of classes
+        '''
+        super(CNN, self).__init__()
+        
+        self.conv1 = Conv2d(4, 100, 7, stride=1, padding=1)
+        self.conv2 = Conv2d(100, 150, 5, stride=1, padding=1)
+        self.conv3 = Conv2d(150, 250, 5, stride=1, padding=2)
+        
+        self.maxpool = MaxPool2d(2, 2)
+
+        # input units: ( [[[(32-4)/2] -2 ]/ 2] -0)**2 * 250 = 6**2 * 250
+        #               \__________________________/     \
+        #             output tensor size                channels
+        self.n_units = 6*6*250
+        self.fc1 = Linear(self.n_units, 100)
+        self.fc2 = Linear(100, n_classes)
+
+        self.activation = ReLU()
+
+        self.apply(initializer)
+        
+        return None
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.activation(out)
+        out = self.maxpool(out)
+        
+        out = self.conv2(out)
+        out = self.activation(out)
+        out = self.maxpool(out)
+
+        out = self.conv3(out)
+        out = self.activation(out)
+        
+        out = out.view(-1, self.n_units)
+        
+        out = self.fc1(out)
+        out = self.activation(out)
+
+        self.features = out
+
+        out = self.fc2(out)
+
+        return out
+
+def convert_image_np(tensor):
+    """Convert a Tensor to numpy image."""
+    np_array = tensor.numpy()
+    np_array = np.moveaxis(np_array,0,-1)
+    np_array = np_array[...,:3]
+    return np_array.astype(np.uint8)
+    
+def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=True, stn=True):
     '''
     This function trains the CNN model. The training is done for the dataset in the dataloader instance
     for multiple epochs. After every epoch the model is saved.
@@ -91,6 +212,10 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
     # We use CrossEntropyLoss and the Adam optimizer
     Loss = CrossEntropyLoss()
     Optimizer = torch.optim.Adam(model.parameters())
+    #if use_gpu:
+        #model.databatch=next(iter(dataloader))["tensor"].cuda()
+    #else:
+        #model.databatch=next(iter(dataloader))["tensor"]
     
     # We calculate for all epochs
     for epoch in tqdm(range(n_epochs), desc='epoch', position=1):
@@ -102,6 +227,11 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
             # Unpack batch
             images_batch, ids_batch = batch['tensor'], batch['id']
             
+            # Transform to variabels
+            
+            images_batch = Variable(images_batch)
+            ids_batch = Variable(ids_batch)
+            #print(ids_batch)
             if use_gpu:
                 images_batch = images_batch.cuda()
                 ids_batch = ids_batch.cuda()
@@ -122,13 +252,22 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
             
             # Update
             Optimizer.step()
-
-            if train_step % 25 == 0:
+            
+            #if train_step % 25 == 0:
+            if batch_index == len(batch)-2:
                 tqdm.write('{}: Batch-Accuracy = {}, Loss = {}'\
                           .format(train_step, float(acc), float(loss)))
+                # Evaluation set up: Save theta after 
+                #model.save_stn()
         
         # Save the model after every epoch
         torch.save(model.state_dict(), '{}-{}.ckpt'.format(checkpoint_name, epoch))
+        
+        # Evaluation set up: Save theta after 
+        if stn:
+            model.save_stn()
+
+    return None
 
 def initializer(module):
     """
@@ -142,49 +281,129 @@ def initializer(module):
         normal_(module.bias)
 
 
-def evaluate(model, dataloader):
+def evaluate(model, dataloader, use_gpu=True):
     """
     For a CNN model we calculate the accuracy on the dataset of dataloader.
     Arguments:  model - a CNN instance
                 dataloader - a dataloader instance bases on dataset or *** class
     """
+    if use_gpu:
+        model.cuda()
+    
     acc = 0
-    for batch in dataloader:
-        images_batch = batch["tensor"]
+    for batch in tqdm(dataloader, desc="Evaluation", position=2):
+        if use_gpu:
+            images_batch = batch["tensor"].cuda()
+            ground_truth = batch["id"].cuda()
+        else:
+            images_batch = batch["tensor"]
+            ground_truth = batch["id"]
         predictions = model(images_batch)
-        ground_truth = batch["id"]
         acc += torch.mean(torch.eq(torch.argmax(predictions, dim=-1),
                                    ground_truth).float())
 
     acc /= len(dataloader)
 
-    acc = float(acc.detach().numpy())
+    acc = float(acc.detach().cpu().numpy())
     return acc
 
+def visualize_stn(model):
+    with torch.no_grad():
+        # Get a batch of training data
+        input_tensor = model.databatch
+        transformed_input_tensor = model.stn(input_tensor)
+
+        in_grid = convert_image_np(
+            torchvision.utils.make_grid(input_tensor.narrow(1,0,3)).cpu())
+
+        out_grid = convert_image_np(
+            torchvision.utils.make_grid(transformed_input_tensor.narrow(1,0,3)).cpu())
+
+        # Plot the results of STN side-by-side
+        fig = plt.figure(figsize=(8,4), dpi=100)
+        
+        fig.add_subplot(1,2,1)
+        plt.imshow(in_grid)
+        plt.xticks([]), plt.yticks([])
+        plt.title('Dataset Images', fontsize=9)
+    
+        fig.add_subplot(1,2,2)
+        plt.imshow(out_grid)
+        plt.xticks([]), plt.yticks([])
+        plt.title('Transformed Images', fontsize=9)
+    
+        fig.tight_layout()
+
+        plt.show(fig)
+        fig.savefig('stn_test_2.pdf', dpi=300)
+    
 
 # Testing stuff
         
 if __name__ == "__main__":
-    #from matplotlib import pyplot as plt
-    filepath_this_file = os.path.dirname(os.path.abspath(__file__))
+    from matplotlib import pyplot as plt
+    #filepath_this_file = os.path.dirname(os.path.abspath(__file__))
+    filepath_this_file = "/media/oliver/Gemeinsame Daten/ORIU/Project/Data"
     filepath_train = os.path.join(filepath_this_file + "/GTSRB/Final_Training/Images")
     filepath_test = os.path.join(filepath_this_file + "/GTSRB/Final_Test/Images")
     
-    trainset = dataset(filepath_test, split="test")
-    trainset.subset(0.2, fractional=True)
+    trainset = dataset(filepath_train, split="train")
+    trainset.subset(0.4, fractional=True)
     
-    tqdm.write(str(len(trainset)))
+    testset = dataset(filepath_test, split="test")
+    testset.subset(0.4, fractional=True)
     
-    dataloader = DataLoader(trainset, batch_size=32, shuffle=True)
+    print("Trainset: " + str(len(trainset)))
+    print("Testset: " + str(len(testset)))
     
-    labels=[]
-    for i in range(len(trainset)):
-        labels.append(trainset[i]["id"])
-    print(labels)
+    dataloader_train = DataLoader(trainset, batch_size=32, shuffle=True)
+    dataloader_test = DataLoader(testset, batch_size=64, shuffle=True)
+    
+    #labels=[]
+    #for i in range(len(trainset)):
+    #    labels.append(trainset[i]["id"])
+    #print(labels)
     
     use_gpu = torch.cuda.is_available()
     tqdm.write("CUDA is available: " + str(use_gpu))
     
-    model = CNN(43)
-    train(model, dataloader, n_epochs=3, checkpoint_name="test", use_gpu=False)
-    print(evaluate(model, dataloader))
+    #model = CNN_STN(43)
+    model = CNN_STN(43)
+    model.databatch=next(iter(dataloader_test))["tensor"].cuda()
+    train(model, dataloader_train, n_epochs=50, checkpoint_name="test", use_gpu=True, stn=True)
+    print("Train accuracy: " + str(evaluate(model, dataloader_train)))
+    print("Test accuracy: " + str(evaluate(model, dataloader_test)))
+    
+    # Plot the results of STN side-by-side
+    tensor = model.databatch.cpu()
+    original = convert_image_np(torchvision.utils.make_grid(tensor.narrow(1,0,3)).cpu())
+    
+    fig = plt.figure(figsize=(8,5), dpi=100)
+        
+    fig.add_subplot(2,3,1)
+    plt.imshow(original)
+    plt.xticks([]), plt.yticks([])
+    plt.title('Dataset Images', fontsize=9)
+    
+    epoch_list=[1,4,9,14,49]
+    for i in range(5):
+        fig.add_subplot(2,3,2+i)
+        plt.imshow(model.list_thetas[i])
+        plt.xticks([]), plt.yticks([])
+        plt.title('Transformed Images ' + str(epoch_list[i]+1) + ' epochs', fontsize=9)
+    
+    fig.tight_layout()
+
+    plt.show(fig)
+    fig.savefig('stn_test.pdf', dpi=300)
+    
+    visualize_stn(model)
+    
+    temp = model.localization(tensor.cuda())
+    temp = temp.view(-1, 40*5*5)
+        
+    # Regress the transformation matrices
+    theta = model.fc_loc(temp)
+    theta = theta.view(-1,2,3)
+    
+    print(theta)

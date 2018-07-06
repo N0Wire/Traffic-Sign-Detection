@@ -271,15 +271,15 @@ if __name__ == "__main__":
     filepath_this_file = os.path.dirname(os.path.abspath(__file__))
     filepath_train = os.path.join(filepath_this_file + "/GTSRB/Final_Training/Images")
     filepath_test = os.path.join(filepath_this_file + "/GTSRB/Final_Test/Images")
-    """
+    
     trainset = dataset(filepath_train, split="train")
     trainset.subset(100, False)
     
     print(len(trainset))
     for i in range(10):
         print(trainset[i])
-    """
     
+    """
     testset = dataset(filepath_test, split="test")
     
     print(len(testset))
@@ -329,3 +329,5 @@ if __name__ == "__main__":
                 batch['tensor'], batch['id']
         #print(batch)
         print(ids_batch)
+        
+    """   
