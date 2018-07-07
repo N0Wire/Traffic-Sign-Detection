@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.ndimage as si
 from skimage import color,segmentation
 from regions import Region
 from operator import itemgetter
@@ -60,11 +61,30 @@ class SelectiveSearch:
 		print("Starting with " + str(self.num_classes) + " classes!")
 		self.num_regions = self.num_classes
 		
+		#calc gradient maps
+		gradrx = si.filters.gaussian_filter(img[:,:,0], 1.0, order=(0,1), mode="nearest")
+		gradgx = si.filters.gaussian_filter(img[:,:,1], 1.0, order=(0,1), mode="nearest") 
+		gradbx = si.filters.gaussian_filter(img[:,:,2], 1.0, order=(0,1), mode="nearest")
+		gradry = si.filters.gaussian_filter(img[:,:,0], 1.0, order=(1,0), mode="nearest")
+		gradgy = si.filters.gaussian_filter(img[:,:,1], 1.0, order=(1,0), mode="nearest")
+		gradby = si.filters.gaussian_filter(img[:,:,2], 1.0, order=(1,0), mode="nearest")
+		
+		gradmap_r = np.sqrt(gradrx**2+gradry**2)
+		gradmap_g = np.sqrt(gradgx**2+gradgy**2)
+		gradmap_b = np.sqrt(gradbx**2+gradby**2)
+		#use np.arctan2 instead of arctan to handle 0 gradients
+		anglemap_r = np.arctan2(gradry,gradrx)*180/np.pi
+		anglemap_g = np.arctan2(gradgy,gradgx)*180/np.pi
+		anglemap_b = np.arctan2(gradby,gradbx)*180/np.pi
+		
+		#check for divison by zero:
+		gradrx==0
+		
 		#create regions arrays
 		self.regions = []
 		for i in range(self.num_classes):
 			r = Region(i)
-			r.evaluate(img, self.segment)
+			r.evaluate(img, self.segment, gradmap_r, gradmap_g, gradmap_b, anglemap_r, anglemap_g, anglemap_b)
 			self.regions.append(r)
 			#self.bboxes.append(r.bbox)		#only testing - uncomment for application
 		

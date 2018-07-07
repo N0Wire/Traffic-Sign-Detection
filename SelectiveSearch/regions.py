@@ -39,71 +39,11 @@ class Region:
 	#color histograms (25 bins per color) 
 	#pixels = 1d array of pixels belonging to class
 	#norm = normalization of histogram
-	def texture_descriptor(self, pixels, mask):
-		#calc gaussian derivatives
-		gradrx = si.filters.gaussian_filter(pixels[:,:,0], 1.0, order=(0,1), mode="nearest")
-		gradgx = si.filters.gaussian_filter(pixels[:,:,1], 1.0, order=(0,1), mode="nearest")
-		gradbx = si.filters.gaussian_filter(pixels[:,:,2], 1.0, order=(0,1), mode="nearest")
-		gradry = si.filters.gaussian_filter(pixels[:,:,0], 1.0, order=(1,0), mode="nearest")
-		gradgy = si.filters.gaussian_filter(pixels[:,:,1], 1.0, order=(1,0), mode="nearest")
-		gradby = si.filters.gaussian_filter(pixels[:,:,2], 1.0, order=(1,0), mode="nearest")
-		
-		gradient_r = []
-		angle_r = []
-		gradient_g = []
-		angle_g = []
-		gradient_b = []
-		angle_b = []
-		
-		#filter out and looking for neighbour-classes (inefficient :))
-		for i in range(pixels.shape[0]):
-			for j in range(pixels.shape[1]):
-				#check for right class
-				if mask[i][j] != self.id:
-					#check if it is really a neighbour
-					is_neighbour = False
-					
-					#only check bottom, top, left,right
-					if (i-1)>=0:
-						is_neighbour = (mask[i-1][j] == self.id)
-					if (i+1)<=(pixels.shape[0]-1):
-						is_neighbour = (mask[i+1][j] == self.id)
-					if (j-1)>=0:
-						is_neighbour = (mask[i][j-1] == self.id)
-					if (j+1)<=(pixels.shape[1]-1):
-						is_neighbour = (mask[i][j+1] == self.id)
-					
-					if not is_neighbour:
-						continue
-				
-					if mask[i][j] not in self.neighbours:
-						self.neighbours.append(mask[i][j])
-					continue
-				
-				g_r = np.sqrt(gradrx[i][j]**2+gradry[i][j]**2)
-				a_r = 90.0
-				if gradrx[i][j] != 0:
-					a_r = np.arctan(gradry[i][j]/gradrx[i][j])*180.0/np.pi
-				g_g = np.sqrt(gradgx[i][j]**2+gradgy[i][j]**2)
-				a_g = 90.0
-				if gradgx[i][j] != 0:
-					a_g = np.arctan(gradgy[i][j]/gradgx[i][j])*180.0/np.pi
-				g_b = np.sqrt(gradbx[i][j]**2+gradby[i][j]**2)
-				a_b = 90.0
-				if gradbx[i][j] != 0:
-					a_b = np.arctan(gradby[i][j]/gradbx[i][j])*180.0/np.pi
-				
-				gradient_r.append(g_r)
-				angle_r.append(a_r)
-				gradient_g.append(g_g)
-				angle_g.append(a_g)
-				gradient_b.append(g_b)
-				angle_b.append(a_b)
-		
+	def texture_descriptor(self, g_r, g_g, g_b, a_r, a_g, a_b):
 		#create 2dhistograms
-		r = np.histogram2d(angle_r, gradient_r, bins=[8,10], range=[[-90, 90],[0,255]])
-		g = np.histogram2d(angle_g, gradient_g, bins=[8,10], range=[[-90, 90],[0,255]])
-		b = np.histogram2d(angle_b, gradient_b, bins=[8,10], range=[[-90, 90],[0,255]])
+		r = np.histogram2d(a_r, g_r, bins=[8,10], range=[[-90, 90],[0,255]])
+		g = np.histogram2d(a_g, g_g, bins=[8,10], range=[[-90, 90],[0,255]])
+		b = np.histogram2d(a_b, g_b, bins=[8,10], range=[[-90, 90],[0,255]])
 		
 		desc = np.append(r[0].flatten(), g[0].flatten())
 		desc = np.append(desc, b[0].flatten()).astype(float)
@@ -115,7 +55,7 @@ class Region:
 		return desc
 	
 	#calculate region informations (bounding box, color hist, texture hist, num pixels)
-	def evaluate(self, img, segmentation):
+	def evaluate(self, img, segmentation, g_r, g_g, g_b, a_r, a_g, a_b):
 		mask = (segmentation==self.id)
 		pixels = img[mask]
 		self.num_pix = len(pixels) #number of pixels in this region
@@ -129,6 +69,16 @@ class Region:
 		rmin, rmax = np.where(rows)[0][[0, -1]] #row
 		cmin, cmax = np.where(cols)[0][[0, -1]] #column
 		self.bbox = np.array([cmin, rmin, cmax, rmax])
+		
+		#texture histograms
+		gr = g_r[cmin:(cmax+1),rmin:(rmax+1)].flatten()
+		gg = g_g[cmin:(cmax+1),rmin:(rmax+1)].flatten() 
+		gb = g_b[cmin:(cmax+1),rmin:(rmax+1)].flatten()
+		ar = a_r[cmin:(cmax+1),rmin:(rmax+1)].flatten()
+		ag = a_g[cmin:(cmax+1),rmin:(rmax+1)].flatten()
+		ab = a_b[cmin:(cmax+1),rmin:(rmax+1)].flatten()
+		
+		self.texturedesc = self.texture_descriptor(gr, gg, gb, ar, ag, ab)
 		
 		#crop out bounding box (choose one bigger -> look for neighouring class labels)
 		tl = cmin #top left
@@ -145,9 +95,30 @@ class Region:
 		if br < (img.shape[1]-1):
 			br += 1
 		
-		cropimg= img[tl:(bl+1),tr:(br+1),:]
-		cropmask = segmentation[tl:(bl+1),tr:(br+1)] 
+		cropmask = segmentation[tl:(bl+1),tr:(br+1)]
+		#np.unique(cropmask) #maybe use unique here
 		
-		#texture histograms
 		self.neighbours = []
-		self.texturedesc = self.texture_descriptor(cropimg, cropmask)
+		for i in range(cropmask.shape[0]):
+			for j in range(cropmask.shape[1]):
+				#check for right class
+				if cropmask[i][j] != self.id:
+					#check if it is really a neighbour
+					is_neighbour = False
+					
+					#only check bottom, top, left,right
+					if (i-1)>=0:
+						is_neighbour = (cropmask[i-1][j] == self.id)
+					if (i+1)<=(cropmask.shape[0]-1):
+						is_neighbour = (cropmask[i+1][j] == self.id)
+					if (j-1)>=0:
+						is_neighbour = (cropmask[i][j-1] == self.id)
+					if (j+1)<=(cropmask.shape[1]-1):
+						is_neighbour = (cropmask[i][j+1] == self.id)
+					
+					if not is_neighbour:
+						continue
+				
+					if cropmask[i][j] not in self.neighbours:
+						self.neighbours.append(cropmask[i][j])
+					continue
