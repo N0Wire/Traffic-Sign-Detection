@@ -98,8 +98,8 @@ class SelectiveSearch:
 
 		#create segmentation
 		self.segment = segmentation.felzenszwalb(img, k, 0.8, minsize)
-		self.num_classes = np.amax(self.segment)+1 # number of classes
-		print("Starting with " + str(self.num_classes) + " classes!")
+		self.num_classes = np.amax(self.segment)+1 			# number of classes
+		#print("Starting with " + str(self.num_classes) + " classes!")
 		self.num_regions = self.num_classes
 		
 		#calc gradient maps
@@ -124,7 +124,7 @@ class SelectiveSearch:
 			r = Region(i)
 			r.evaluate(img, self.segment, gradmap_r, gradmap_g, gradmap_b, anglemap_r, anglemap_g, anglemap_b)
 			self.regions.append(r)
-			#self.bboxes.append(r.bbox)		#only testing - uncomment for application
+			self.bboxes.append(r.bbox)		#only testing - uncomment for application
 		
 		#calc region neighbours
 		for r in self.regions:
@@ -264,7 +264,7 @@ class SelectiveSearch:
 				#if (num_steps%100)==0:
 				#	print(num_steps)
 			
-			print(str(num_steps) + " steps taken for Selective Search!")
+			#print(str(num_steps) + " steps taken for Selective Search!")
 			bounding_boxes += self.bboxes
 		elif method == "deep":
 			k_inits = [50, 100]
@@ -278,7 +278,7 @@ class SelectiveSearch:
 					num_steps += 1
 					
 				bounding_boxes += self.bboxes			
-				print(str(num_steps) + " steps taken for Selective Search!")
+				#print(str(num_steps) + " steps taken for Selective Search!")
 
 		elif method == "fast":
 			colors = ["hsv", "lab"]

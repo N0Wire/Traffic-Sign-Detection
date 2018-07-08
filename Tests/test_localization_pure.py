@@ -2,74 +2,50 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import pandas as pd
-from skimage import io
 from selective_search import SelectiveSearch
 import time
 
-#dirty method to read .ppm files (need to have format of FulliJCNN2013 images)
-def ppm_reader(path):
-	f = open(path, "r")
-	#"parse" header
-	c = f.read(2) #should be P6
-	
-	f.read(1) # read place holder
-	c2 = f.read(4) #1360
-	f.read(1)
-	c3 = f.read(3) #800
-	f.read(1)
-	c4 = f.read(3) #255
-	f.read(1)
-	
-	if c != "P6" or c2 != "1360" or c3 != "800":
-		print("Can't support Image type!")
-		return 0
-	
-	img = np.zeros((800, 1360, 3), dtype="uint8")
-	for i in range(800):
-		for j in range(1360):
-			for k in range(3):
-				img[i][j][k] = np.fromstring(f.read(1), dtype="uint8")
-	
-	return img
 
+#Intersection over Union
 def overlap(box1, box2):
-	area1 = float(box1[2]-box1[0])*float(box1[3]-box1[0])
-	area2 = float(box2[2]-box2[0])*float(box2[3]-box2[0])
+	area1 = (box1[2]-box1[0])*(box1[3]-box1[1])
+	area2 = (box2[2]-box2[0])*(box2[3]-box2[1])
 	
+	#intersection region
 	miny = max(box1[0], box2[0])
 	minx = max(box1[1], box2[1])
 	maxy = min(box1[2], box2[2])
 	maxx = min(box1[3], box2[3])
 	
-	area = float(maxy-miny)*float(maxx-minx)
+	intersect = max(0, maxy-miny)*max(0, maxx-minx)
+	total_area = float(area1+area2-intersect) #don't count area 2 times
 	
-	return area/(area1+area2)
+	return intersect/total_area
 
 #parse file
 path = "../Data/FullIJCNN2013/"
 savepath = "Localization/"
 infos = pd.read_csv(path + "gt.txt", delimiter=";", header=None)
 
-best_overlapps = np.zeros(len(infos))
-times = np.zeros(900)
-index = 0
-t_index = 0
+found_boxes = [] #list of all bounding boxes found
+best_overlapps = np.zeros(len(infos)) #contains best overlap score(IoU) for bounding box
+times = np.zeros(900) #contains time needed for selective search on every image
+index = 0 #index for current entry of GT-Data (because one image can obtain multiple objects)
+t_index = 0	#index for time data (= image index)
 while index<len(infos):
 	j = index
-	name = infos[0][index]
-	rectangles = []
-	overlap_boxes = []
+	name = infos[0][index] #current image file
+	rectangles = [] #GT-Data for current image
+	overlap_boxes = []	#best matching boxes found by Selective Search
 	#look how many bounding boxes are in this picture to find
 	while j<len(infos):
-		if infos[0][j] == name:
-			temp = [infos[2][j], infos[1][j], infos[4][j], infos[3][j]] #identical format, compared to ss_search
+		if infos[0][j] == name: #if name isn't the same -> new image -> is handled next iteration
+			temp = [infos[2][j], infos[1][j], infos[4][j], infos[3][j]] #identical format, compared to Selective Search output
 			rectangles.append(temp)
-			overlap_boxes.append(temp)
+			overlap_boxes.append([0,0,0,0]) #dummy bounding box
 		else:
 			break
 		j += 1
-		
-	index += len(rectangles)
 	
 	print("Evaluating " + name)
 	#run selective search and obtain bounding boxes
@@ -77,22 +53,24 @@ while index<len(infos):
 	
 	start = time.time()
 	ss = SelectiveSearch()
-	boxes = ss.run(img)# , "fast")
+	boxes = ss.run(img, "deep")#, "fast")
 	stop = time.time()
-	times[t_index] = stop-start
+	times[t_index] = (stop-start)
 	t_index += 1
+	found_boxes.append(boxes) 
 	
-	
-	for b in boxes:
-		#determine best overlapp
-		for i,r in enumerate(rectangles):
+	#determine best overlapp
+	for i,r in enumerate(rectangles):
+		for b in boxes:
 			score = overlap(r, b)
 			if score > best_overlapps[index+i]:
 				best_overlapps[index+i] = score
 				overlap_boxes[i] = b
 	
-	for i,r in enumerate(rectangles):
-		print("Best-Overlapp: " + str(best_overlapps[index+i]))
+	#for i,r in enumerate(rectangles):
+	#	print("Best-Overlapp: " + str(best_overlapps[index+i]))
+	
+	index += len(rectangles)
 	
 	plt.figure(1, dpi=100, figsize=(13.6,8.0))
 	plt.clf()
@@ -107,13 +85,20 @@ while index<len(infos):
 		plt.gca().add_patch(rect)
 	plt.savefig(savepath + name[0:len(name)-3] + "png") #can't save as ppm
 	
-	break
+
+	if index >= 5:
+		print("Stopping Index: " +str(index))
+		break
+
+#reduce data
+best_overlapps = np.array(best_overlapps[0:index])
+times = np.array(times[0:t_index])
+print(best_overlapps)
 
 
 #calculate mean best overlap:
-mbo = np.sum(best_overlapps)/float(best_overlapps.shape[0])
+mbo = np.sum(best_overlapps)/float(index)
 print("Mean Best Overlapp: " + str(mbo))
 
-mt = np.sum(times)/900.0
+mt = np.sum(times)/float(t_index)
 print("Mean Time needed for selective search: " + str(mt))
-	
