@@ -24,6 +24,47 @@ class SelectiveSearch:
 		
 		self.visualize = False				#Visualize Selective Search
 	
+	#Find Neighbours for region r and also add r as neighbour
+	#needs to be called after regions are created
+	def find_neighbours(self, r):
+		#crop out bounding box (choose one bigger -> look for neighouring class labels)
+		tl = r.bbox[0] #top left
+		bl = r.bbox[2] # bottom left
+		tr = r.bbox[1] #top right
+		br = r.bbox[3] #bottom right
+		
+		if tl > 0:
+			tl -= 1
+		if tr > 0:
+			tr -= 1
+		if bl < (self.segment.shape[0]-1):
+			bl += 1
+		if br < (self.segment.shape[1]-1):
+			br += 1
+		
+		crop = self.segment[tl:bl+1,tr:br+1]
+		for i in range(crop.shape[0]):
+			for j in range(crop.shape[1]):
+				cur = crop[i][j]
+				if cur != r.id:
+					#check for neighbours
+					is_neighbour = False
+					
+					if (i-1) >= 0 and not is_neighbour:
+						is_neighbour = (crop[i-1][j]==r.id)
+					if (j-1) >= 0 and not is_neighbour:
+						is_neighbour = (crop[i][j-1]==r.id)
+					if (i+1) <= (crop.shape[0]-1) and not is_neighbour:
+						is_neighbour = (crop[i+1][j]==r.id)
+					if (j+1) <= (crop.shape[1]-1) and not is_neighbour:
+						is_neighbour = (crop[i][j+1]==r.id)
+					
+					#append if not exists
+					if is_neighbour:
+						if cur not in r.neighbours:
+							r.neighbours.append(cur)
+	
+	
 	#calculate Similarity between Region1 and Region2
 	#r1, r2: Region object
 	#a: which similarities are used (only 0 or 1.0)
@@ -77,9 +118,6 @@ class SelectiveSearch:
 		anglemap_g = np.arctan2(gradgy,gradgx)*180/np.pi
 		anglemap_b = np.arctan2(gradby,gradbx)*180/np.pi
 		
-		#check for divison by zero:
-		gradrx==0
-		
 		#create regions arrays
 		self.regions = []
 		for i in range(self.num_classes):
@@ -87,6 +125,10 @@ class SelectiveSearch:
 			r.evaluate(img, self.segment, gradmap_r, gradmap_g, gradmap_b, anglemap_r, anglemap_g, anglemap_b)
 			self.regions.append(r)
 			#self.bboxes.append(r.bbox)		#only testing - uncomment for application
+		
+		#calc region neighbours
+		for r in self.regions:
+			self.find_neighbours(r)
 		
 		
 		#calculate similiarities s(ri,rj)
@@ -125,9 +167,9 @@ class SelectiveSearch:
 			if e not in newr.neighbours:
 					newr.neighbours.append(e)
 		
-		#newr.neighbours = sorted(newr.neighbours)
 		
 		#now recalc neighbour lists of other regions
+		"""
 		for i,r in enumerate(self.regions):
 			if r.merged:
 				continue
@@ -144,6 +186,13 @@ class SelectiveSearch:
 				self.regions[i].neighbours.append(newr.id)
 				if i not in newr.neighbours:
 					newr.neighbours.append(i)
+		"""
+		for n in newr.neighbours:
+			if r1.id in self.regions[n].neighbours:
+				self.regions[n].neighbours.remove(r1.id)
+			if r2.id in self.regions[n].neighbours:
+				self.regions[n].neighbours.remove(r2.id)
+			self.regions[n].neighbours.append(newr.id)
 		
 		#remove old regions
 		if r1.id in newr.neighbours:
@@ -217,6 +266,20 @@ class SelectiveSearch:
 			
 			print(str(num_steps) + " steps taken for Selective Search!")
 			bounding_boxes += self.bboxes
+		elif method == "deep":
+			k_inits = [50, 100]
+			for k in k_inits:
+				self.init_step(img, "hsv", k)
+				ret = True
+				num_steps = 0
+			
+				while ret:
+					ret = self.step()
+					num_steps += 1
+					
+				bounding_boxes += self.bboxes			
+				print(str(num_steps) + " steps taken for Selective Search!")
+
 		elif method == "fast":
 			colors = ["hsv", "lab"]
 			k_inits = [50, 100]

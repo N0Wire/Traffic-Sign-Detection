@@ -79,46 +79,4 @@ class Region:
 		ab = a_b[cmin:(cmax+1),rmin:(rmax+1)].flatten()
 		
 		self.texturedesc = self.texture_descriptor(gr, gg, gb, ar, ag, ab)
-		
-		#crop out bounding box (choose one bigger -> look for neighouring class labels)
-		tl = cmin #top left
-		bl = cmax+1 # bottom left
-		tr = rmin #top right
-		br = rmax+1 #bottom right
-		
-		if tl > 0:
-			tl -= 1
-		if tr > 0:
-			tr -= 1
-		if bl < (img.shape[0]-1):
-			bl += 1
-		if br < (img.shape[1]-1):
-			br += 1
-		
-		cropmask = segmentation[tl:(bl+1),tr:(br+1)]
-		#np.unique(cropmask) #maybe use unique here
-		
-		self.neighbours = []
-		for i in range(cropmask.shape[0]):
-			for j in range(cropmask.shape[1]):
-				#check for right class
-				if cropmask[i][j] != self.id:
-					#check if it is really a neighbour
-					is_neighbour = False
-					
-					#only check bottom, top, left,right
-					if (i-1)>=0:
-						is_neighbour = (cropmask[i-1][j] == self.id)
-					if (i+1)<=(cropmask.shape[0]-1):
-						is_neighbour = (cropmask[i+1][j] == self.id)
-					if (j-1)>=0:
-						is_neighbour = (cropmask[i][j-1] == self.id)
-					if (j+1)<=(cropmask.shape[1]-1):
-						is_neighbour = (cropmask[i][j+1] == self.id)
-					
-					if not is_neighbour:
-						continue
-				
-					if cropmask[i][j] not in self.neighbours:
-						self.neighbours.append(cropmask[i][j])
-					continue
+
