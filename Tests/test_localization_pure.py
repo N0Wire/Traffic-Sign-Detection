@@ -25,52 +25,52 @@ def overlap(box1, box2):
 #parse file
 path = "../Data/FullIJCNN2013/"
 savepath = "Localization/"
-infos = pd.read_csv(path + "gt.txt", delimiter=";", header=None)
+info_table = pd.read_csv(path + "gt.txt", delimiter=";", header=None)
 
-found_boxes = [] #list of all bounding boxes found
-best_overlapps = np.zeros(len(infos)) #contains best overlap score(IoU) for bounding box
-times = np.zeros(900) #contains time needed for selective search on every image
-index = 0 #index for current entry of GT-Data (because one image can obtain multiple objects)
-t_index = 0	#index for time data (= image index)
-while index<len(infos):
-	j = index
-	name = infos[0][index] #current image file
-	rectangles = [] #GT-Data for current image
-	overlap_boxes = []	#best matching boxes found by Selective Search
-	#look how many bounding boxes are in this picture to find
-	while j<len(infos):
-		if infos[0][j] == name: #if name isn't the same -> new image -> is handled next iteration
-			temp = [infos[2][j], infos[1][j], infos[4][j], infos[3][j]] #identical format, compared to Selective Search output
+infos = np.array(info_table)
+
+found_boxes = []		 	#list of all bounding boxes found
+best_overlaps = []			#contains best overlap score(IoU) for bounding box
+times = [] 					#contains time needed for selective search on every image
+
+start_index = 0				#start image
+num = 3 					#number of images
+
+for i in range(start_index, start_index+num):
+	im_name = "{:05d}.ppm".format(i)
+	im_path = path+im_name
+	
+	rectangles = []
+	overlap_boxes = []
+	scores = [] 
+	
+	for e in infos:
+		if e[0] == im_name:
+			temp = [e[2], e[1], e[4], e[3]]
 			rectangles.append(temp)
 			overlap_boxes.append([0,0,0,0]) #dummy bounding box
-		else:
-			break
-		j += 1
+			scores.append(0)
 	
-	print("Evaluating " + name)
+	print("Evaluating " + im_name)
 	#run selective search and obtain bounding boxes
-	img = plt.imread(path+name)
+	img = plt.imread(im_path)
 	
 	start = time.time()
 	ss = SelectiveSearch()
-	boxes = ss.run(img, "deep")#, "fast")
+	boxes = ss.run(img, "deep") # "fast"
 	stop = time.time()
-	times[t_index] = (stop-start)
-	t_index += 1
+	times.append(stop-start)
 	found_boxes.append(boxes) 
 	
 	#determine best overlapp
 	for i,r in enumerate(rectangles):
 		for b in boxes:
 			score = overlap(r, b)
-			if score > best_overlapps[index+i]:
-				best_overlapps[index+i] = score
+			if score > scores[i]:
+				scores[i] = score
 				overlap_boxes[i] = b
 	
-	#for i,r in enumerate(rectangles):
-	#	print("Best-Overlapp: " + str(best_overlapps[index+i]))
-	
-	index += len(rectangles)
+	best_overlaps += scores
 	
 	plt.figure(1, dpi=100, figsize=(13.6,8.0))
 	plt.clf()
@@ -83,22 +83,18 @@ while index<len(infos):
 	for b in overlap_boxes: #best matching bounding boxes
 		rect = patches.Rectangle((b[1], b[0]),np.abs(b[3]-b[1]), np.abs(b[2]-b[0]), linewidth=1, edgecolor="r", facecolor="none")
 		plt.gca().add_patch(rect)
-	plt.savefig(savepath + name[0:len(name)-3] + "png") #can't save as ppm
-	
+	plt.savefig(savepath + im_name[0:len(im_name)-3] + "png") #can't save as ppm -> save as png
 
-	if index >= 5:
-		print("Stopping Index: " +str(index))
-		break
+
 
 #reduce data
-best_overlapps = np.array(best_overlapps[0:index])
-times = np.array(times[0:t_index])
-print(best_overlapps)
-
+best_overlaps = np.array(best_overlaps)
+times = np.array(times)
+print(best_overlaps)
 
 #calculate mean best overlap:
-mbo = np.sum(best_overlapps)/float(index)
+mbo = np.sum(best_overlaps)/float(best_overlaps.shape[0])
 print("Mean Best Overlapp: " + str(mbo))
 
-mt = np.sum(times)/float(t_index)
+mt = np.sum(times)/float(times.shape[0])
 print("Mean Time needed for selective search: " + str(mt))
