@@ -77,8 +77,8 @@ class CNN_STN(nn.Module):
         )
         
         #Initializer all layer of STN
-        self.localization.apply(intializer_stn)
-        self.fc_loc.apply(intializer_stn)
+        self.localization.apply(initializer_stn)
+        self.fc_loc.apply(initializer_stn)
         
         # Initialize the weights/bias with identity transformation of last STN layer
         self.fc_loc[2].weight.data.zero_()
@@ -259,7 +259,7 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
                 ids_batch = ids_batch.cuda()
 
             # Forward
-            if epoch < 8 :
+            if epoch < 6 :
                 predictions, thetas = model(images_batch, True)
                 
                 # Loss
@@ -276,8 +276,8 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
                 # Loss
                 loss1 = Distance(thetas, identity_tensor)
                 loss2 = Loss(predictions, ids_batch)
-                #loss = 0.01 * loss1 + loss2
-                loss = loss2
+                loss = 0.01 * loss1 + loss2
+                #loss = loss2
                 #if epoch  < 3:
                 #    loss = loss2 + loss1
                 #else:
@@ -297,10 +297,10 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
             # Update
             Optimizer.step()
             
-            if train_step % 100 == 0:
+            if train_step % 25 == 0:
             #if batch_index == len(dataloader)-2:
-                tqdm.write('{}: Batch-Accuracy = {}, Loss = {}'\
-                          .format(train_step, float(acc), float(loss)))
+                tqdm.write('{}: Batch-Accuracy = {}, Loss = {}, Epoch = {}'\
+                          .format(train_step, float(acc), float(loss), epoch))
                 if stn:
                     visualize_stn(model)
                 # Evaluation set up: Save theta after 
@@ -327,11 +327,11 @@ def initializer(module):
         
 def initializer_stn(module):
     if isinstance(module, Conv2d):
-        xavier_normal_(module.weight, gain=0.1)
-        normal_(module.bias, std=0.1)
+        xavier_normal_(module.weight, gain=0.3)
+        normal_(module.bias, std=0.3)
     elif isinstance(module, Linear):
-        normal_(module.weight, std=0.1)
-        normal_(module.bias, std=0.1)
+        normal_(module.weight, std=0.3)
+        normal_(module.bias, std=0.3)
     
 
 
@@ -402,7 +402,7 @@ if __name__ == "__main__":
     filepath_test = os.path.join(filepath_this_file + "/GTSRB/Final_Test/Images")
     
     trainset = dataset(filepath_train, split="train")
-    #trainset.subset(0.4, fractional=True)
+    trainset.subset(0.9, fractional=True)
     
     testset = dataset(filepath_test, split="test")
     testset.subset(0.4, fractional=True)
@@ -424,7 +424,7 @@ if __name__ == "__main__":
     #model = CNN_STN(43)
     model = CNN_STN(43)
     model.databatch=next(iter(dataloader_train))["tensor"].cuda()
-    train(model, dataloader_train, n_epochs=10, checkpoint_name="test", use_gpu=True, stn=True)
+    train(model, dataloader_train, n_epochs=20, checkpoint_name="test", use_gpu=True, stn=True)
     print("Train accuracy: " + str(evaluate(model, dataloader_train)))
     print("Test accuracy: " + str(evaluate(model, dataloader_test)))
 
