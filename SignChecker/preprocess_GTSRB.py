@@ -1,6 +1,7 @@
 import numpy as np
 from skimage import io, transform, feature
 import pandas as pd
+import multiprocessing as mp
 
 #Take images from GTSRB database and calculate HOG-Descriptors
 #-> those are later used to train SVM
@@ -24,39 +25,39 @@ def evaluate_image(path, name, bbox):
 	img = io.imread(full_path)
 	
 	#full image
-	full = transform.resize(img, (SIZE_X, SIZE_Y), anti_aliasing=True)
+	full = transform.resize(img, (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
 	desc = feature.hog(full, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
 	descs.append(desc)
 	
 	#bounding box
-	crop1 = transform.resize(img[bbox[0]:bbox[2]+1,bbox[1]:bbox[3]+1], (SIZE_X, SIZE_Y), anti_aliasing=True)
+	crop1 = transform.resize(img[bbox[0]:bbox[2]+1,bbox[1]:bbox[3]+1], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
 	desc = feature.hog(crop1, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
 	descs.append(desc)
 	
 	#cut parts of the sign (always substract about 5 pixels)
 	#top
-	crop2 = transform.resize(img[bbox[0]+5:,:], (SIZE_X, SIZE_Y), anti_aliasing=True)
-	desc = feature.hog(crop2, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
+	crop2 = transform.resize(img[bbox[0]+5:,:], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
+	desc = feature.hog(crop2, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
 	descs.append(desc)
 	
 	#bottom
-	crop3 = transform.resize(img[:bbox[2]+1-5,:], (SIZE_X, SIZE_Y), anti_aliasing=True)
-	desc = feature.hog(crop3, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
+	crop3 = transform.resize(img[:bbox[2]+1-5,:], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
+	desc = feature.hog(crop3, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
 	descs.append(desc)
 	
 	#left
-	crop4 = transform.resize(img[:,bbox[1]+5:], (SIZE_X, SIZE_Y), anti_aliasing=True)
-	desc = feature.hog(crop4, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
+	crop4 = transform.resize(img[:,bbox[1]+5:], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
+	desc = feature.hog(crop4, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
 	descs.append(desc)
 	
 	#right
-	crop5 = transform.resize(img[:,:bbox[3]+1-5], (SIZE_X, SIZE_Y), anti_aliasing=True)
-	desc = feature.hog(crop5, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
+	crop5 = transform.resize(img[:,:bbox[3]+1-5], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
+	desc = feature.hog(crop5, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
 	descs.append(desc)
 	
-	#center
-	crop6 = transform.resize(img[bbox[0]+5:bbox[2]+1-5,bbox[1]+5:bbox[3]+1-5], (SIZE_X, SIZE_Y), anti_aliasing=True)
-	desc = feature.hog(crop6, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
+	#center (only crop 4 pixels)
+	crop6 = transform.resize(img[bbox[0]+2:bbox[2]+1-2,bbox[1]+2:bbox[3]+1-2], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
+	desc = feature.hog(crop6, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
 	descs.append(desc)
 	
 	return descs
@@ -67,14 +68,15 @@ print("[+]Training Images")
 
 
 #preprocess
-for i in range(num_classes):
-	print("Processing Image-Class " + str(i))
-	full_path = "{}/{:05d}/".format(path_training, i)
-	csvfile = "{}GT-{:05d}.csv".format(full_path, i)
+def process_class(c_index):
+	print("Processing Image-Class " + str(c_index))
+	full_path = "{}/{:05d}/".format(path_training, c_index)
+	csvfile = "{}GT-{:05d}.csv".format(full_path, c_index)
 	
 	#load data
 	data = pd.read_csv(csvfile, delimiter=";")
 	names = data["Filename"]
+	
 	x1 = data["Roi.X1"]
 	x2 = data["Roi.X2"]
 	y1 = data["Roi.Y1"]
@@ -82,25 +84,43 @@ for i in range(num_classes):
 	
 	#load pictures and preprocess
 	descriptors = []
-	for j in range(len(names)):
+	j = 0
+	while j < len(names):
+		
 		box = [y1[j], x1[j], y2[j], x2[j]]
 		descs = evaluate_image(full_path, names[j], box)
 		for d in descs:
-			temp = [1] #1 for Traffic Sign
+			temp = [1] #1 for Traffic Sign - 0 for no traffic sign
 			for k in d:
 				temp.append(k)
 			descriptors.append(temp)
+		#each track contains 30 images -> take every fifth -> 6 images per track
+		j += 5
 
 	cols = ["Class-Label"]
-	for c in range(2916):
+	for c in range(desc_size):
 		cols.append("D"+str(c))
 	
 	#save data
 	ds = np.array(descriptors)
-	np.save("Data/hog_train_c"+str(i)+".npy", ds)
+	np.save("Data/hog_train_c"+str(c_index)+".npy", ds)
 
-	#df = pd.DataFrame(descriptors, columns=cols)
-	#df.to_csv("Data/hog_train_c"+str(i)+".csv")
+
+##########################################################
+start_values = range(num_classes)
+
+procs = []
+for v in start_values:
+	p = mp.Process(target=process_class, args=(v,))
+	procs.append(p)
+
+for i,p in enumerate(procs):
+	print("Start " + str(start_values[i]))
+	p.start()
+
+for p in procs:
+	p.join()
+
 
 """
 ##################
