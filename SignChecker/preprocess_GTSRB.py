@@ -86,7 +86,8 @@ def process_class(c_index):
 	descriptors = []
 	j = 0
 	while j < len(names):
-		
+		if j > 900:	#maximum 30 tracks
+			break
 		box = [y1[j], x1[j], y2[j], x2[j]]
 		descs = evaluate_image(full_path, names[j], box)
 		for d in descs:
@@ -103,7 +104,7 @@ def process_class(c_index):
 	
 	#save data
 	ds = np.array(descriptors)
-	np.save("Data/hog_train_c"+str(c_index)+".npy", ds)
+	np.save("Data/hog_train_c"+str(c_index)+".npy", ds, allow_pickle=False)
 
 
 ##########################################################
@@ -120,34 +121,3 @@ for i,p in enumerate(procs):
 
 for p in procs:
 	p.join()
-
-
-"""
-##################
-#Test Images
-print("[+]Test Images")
-
-#load data
-info = []
-data = pd.read_csv(path_test + "GT-final_test.test.csv", delimiter=";")
-names = data["Filename"]
-x1 = data["Roi.X1"]
-x2 = data["Roi.X2"]
-y1 = data["Roi.Y1"]
-y2 = data["Roi.Y2"]
-
-for j in names:
-	box = [y1[j], x1[j], y2[j], x2[j]]
-	desc = evaluate_image(path_test, j, box)
-	temp = [i, full_path + names[j]]
-	for k in desc:
-		temp.append(k)
-	info.append(temp)
-
-cols = []
-for i in range(2916):
-	cols.append("D"+str(i))
-
-df = pd.DataFrame(info, columns=cols)
-df.to_csv("Data/hog_desc_test.csv")
-"""

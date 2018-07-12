@@ -1,36 +1,22 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-import pickle
-from skimage import io, transform, feature
 from sign_checker import SignChecker
 
-#load bbox data
-path = "../Data/FullIJCNN2013/"
-infos = pd.read_csv(path + "gt.txt", delimiter=";", header=None)
+#load all calculated HOG-Descriptors
+path = "Data/"
+max_run = 60
+data = np.load(path+"hog_run_1.npy")
+for i in range(2,max_run+1):
+	if i==58: #58 has no sign and no negative samples -> neglect
+		continue
+	data = np.concatenate((data, np.load(path+"hog_run_"+str(i)+".npy")), axis=0)
 
-#loads all data from first 600 runs and and creates histograms and trains SVM
-path2 = "Runs/"
-best_overlapps = []
-times = []
-boxes = []
+for i in range(43):
+	data = np.concatenate((data, np.load(path+"hog_train_c"+str(i)+".npy")), axis=0)
 
-max_runnum = 60
-for run_num in range(1, max_runnum+1):
-	f = open(path2+"boxes_"+str(run_num)+".dat", "rb")
-	bs = pickle.load(f)
-	f.close()
+print("Data loaded! Training SVM ...")
+sc = SignChecker(100.0, 10.0)
+sc.train(data[:,1:],data[:,0])
+sc.save(path+"1_")
 
-	boxes.append(bs)
-
-
-
-#crop out image parts
-#for i,b in enumerate(boxes):
-#	
-
-
-
-#sc = SignChecker(1.0)
-#sc.train()
-#sc.save()
+#parameters:
+#1 - C=100 gamma=10
