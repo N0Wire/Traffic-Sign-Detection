@@ -3,6 +3,7 @@ import pandas as pd
 import pickle
 from skimage import io, transform, feature
 import multiprocessing as mp
+import glob
 
 #use resulting boxes from Selective Search to get negative training samples
 
@@ -41,7 +42,7 @@ infos = np.array(info_table)
 path2 = "Runs/"
 
 #image to take negative samples from (try to take different locations)
-negative_samples = [35, 53, 113, 126, 210, 418, 465, 544]
+negative_samples = [4, 35, 53, 57, 113, 126, 210, 418, 465, 544, 41, 143, 236, 318, 367, 460, 439, 555, 585, 595]
 
 #maximum run=60 -> use first 600 images as training images
 def process_run(run_num, negatives=[]):
@@ -82,15 +83,14 @@ def process_run(run_num, negatives=[]):
 			
 			if ratio < 0.7 or ratio > 1.3:
 				continue
-			if width < 25.0 or height < 25.0:
+			if width < 20.0 or height < 20.0:
 				continue
 			
 			#box passed criterias
-		
 			use = False	#can bounding box be used as negative
+			cl = 0
 			for k,r in enumerate(rectangles):
 				score = overlap(r, b)
-				cl = 0
 				
 				if score < 0.5 and im_num in negatives: #no negative sample anymore
 					use = True
@@ -135,3 +135,20 @@ while index <= 56:
 		p.join()
 	
 	index += 5
+
+#additional signs from GTSDB
+print("Processing GTSDB signs")
+descriptors = []
+for i in range(43): #43 classes are existing
+	full_path = "{}{:02d}/".format(path, i)
+	files = glob.glob(full_path+"*.ppm")
+	for f in files:
+		img = io.imread(f)
+		desc = GetDescriptor(img)
+		temp = [1]
+		for k in desc:
+			temp.append(k)
+		descriptors.append(temp)
+
+ds = np.array(descriptors)
+np.save("Data/gtsdb.npy", ds, allow_pickle=False)

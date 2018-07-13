@@ -26,12 +26,12 @@ def evaluate_image(path, name, bbox):
 	
 	#full image
 	full = transform.resize(img, (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(full, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
+	desc = feature.hog(full, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
 	descs.append(desc)
 	
 	#bounding box
 	crop1 = transform.resize(img[bbox[0]:bbox[2]+1,bbox[1]:bbox[3]+1], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(crop1, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1")
+	desc = feature.hog(crop1, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
 	descs.append(desc)
 	
 	#cut parts of the sign (always substract about 5 pixels)
@@ -86,8 +86,8 @@ def process_class(c_index):
 	descriptors = []
 	j = 0
 	while j < len(names):
-		if j > 900:	#maximum 30 tracks
-			break
+		#if j > 900:	#maximum 30 tracks
+		#	break
 		box = [y1[j], x1[j], y2[j], x2[j]]
 		descs = evaluate_image(full_path, names[j], box)
 		for d in descs:
@@ -96,7 +96,7 @@ def process_class(c_index):
 				temp.append(k)
 			descriptors.append(temp)
 		#each track contains 30 images -> take every fifth -> 6 images per track
-		j += 5
+		j += 3
 
 	cols = ["Class-Label"]
 	for c in range(desc_size):
