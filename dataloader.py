@@ -14,13 +14,13 @@ import numpy as np
 import torch
 import os
 import pandas as pd
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from skimage.color import rgb2gray
 from scipy.ndimage.interpolation import zoom
 from random import shuffle
 from skimage import exposure
 from skimage.feature import canny
-from tqdm import tqdm, trange
+from tqdm import tqdm
 from time import sleep
 
 
