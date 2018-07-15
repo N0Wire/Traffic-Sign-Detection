@@ -1,7 +1,8 @@
 import numpy as np
-from skimage import io, transform, feature
+from skimage import io
 import pandas as pd
 import multiprocessing as mp
+import tools
 
 #Take images from GTSRB database and calculate HOG-Descriptors
 #-> those are later used to train SVM
@@ -10,8 +11,6 @@ import multiprocessing as mp
 num_classes = 43 #(0-42)
 path_training = "../Data/GTSRB/Final_Training/Images"
 path_test = "../Data/GTSRB/Final_Test/Images/"
-SIZE_X = 64		#size of final image in x direction
-SIZE_Y = 64		#size of final image in y direction
 desc_size = 2916 #size of HOG-Descriptor
 
 #use different parts of image, scales them and calculates HOG-Descriptors
@@ -25,40 +24,35 @@ def evaluate_image(path, name, bbox):
 	img = io.imread(full_path)
 	
 	#full image
-	full = transform.resize(img, (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(full, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
+	desc = tools.HogDescriptor(img)
 	descs.append(desc)
 	
 	#bounding box
-	crop1 = transform.resize(img[bbox[0]:bbox[2]+1,bbox[1]:bbox[3]+1], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(crop1, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
+	desc = tools.HogDescriptor(img[bbox[0]:bbox[2]+1,bbox[1]:bbox[3]+1])
 	descs.append(desc)
 	
 	#cut parts of the sign (always substract about 5 pixels)
+	"""
 	#top
-	crop2 = transform.resize(img[bbox[0]+5:,:], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(crop2, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
+	desc = tools.HogDescriptor(img[bbox[0]+5:,:])
 	descs.append(desc)
 	
 	#bottom
-	crop3 = transform.resize(img[:bbox[2]+1-5,:], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(crop3, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
+	desc = tools.HogDescriptor(img[:bbox[2]+1-5,:])
 	descs.append(desc)
 	
 	#left
-	crop4 = transform.resize(img[:,bbox[1]+5:], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(crop4, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
+	desc = tools.HogDescriptor(img[:,bbox[1]+5:])
 	descs.append(desc)
 	
 	#right
-	crop5 = transform.resize(img[:,:bbox[3]+1-5], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(crop5, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
+	desc = tools.HogDescriptor(img[:,:bbox[3]+1-5])
+	descs.append(desc)
+	"""
+	#center (only crop 2 pixels)
+	desc = tools.HogDescriptor(img[bbox[0]+2:bbox[2]+1-2,bbox[1]+2:bbox[3]+1-2])
 	descs.append(desc)
 	
-	#center (only crop 4 pixels)
-	crop6 = transform.resize(img[bbox[0]+2:bbox[2]+1-2,bbox[1]+2:bbox[3]+1-2], (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
-	desc = feature.hog(crop6, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True)
-	descs.append(desc)
 	
 	return descs
 
