@@ -2,10 +2,6 @@ import numpy as np
 import scipy.ndimage as si
 import matplotlib.pyplot as plt
 
-#TODO: -> Check Texture-Histograms -> maybe use LBP instead
-#TODO: -> Normalization of Histograms with L1 [Done]
-#TODO: -> Neighbours are not handled correctly
-#TODO: -> Check Bounding Boxes
 
 #contains Information for a Region of the segmented image (later on -> own file)
 class Region:
@@ -69,7 +65,6 @@ class Region:
 		rmin, rmax = np.where(rows)[0][[0, -1]] #row
 		cmin, cmax = np.where(cols)[0][[0, -1]] #column
 		self.bbox = np.array([cmin, rmin, cmax, rmax])
-		
 		#texture histograms
 		gr = g_r[cmin:(cmax+1),rmin:(rmax+1)].flatten()
 		gg = g_g[cmin:(cmax+1),rmin:(rmax+1)].flatten() 

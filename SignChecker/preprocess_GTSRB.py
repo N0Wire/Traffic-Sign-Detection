@@ -11,7 +11,6 @@ import tools
 num_classes = 43 #(0-42)
 path_training = "../Data/GTSRB/Final_Training/Images"
 path_test = "../Data/GTSRB/Final_Test/Images/"
-desc_size = 2916 #size of HOG-Descriptor
 
 #use different parts of image, scales them and calculates HOG-Descriptors
 #path: path to data-set folder (with / at end)
@@ -80,7 +79,7 @@ def process_class(c_index):
 	descriptors = []
 	j = 0
 	while j < len(names):
-		#if j > 900:	#maximum 30 tracks
+		#if j > 1500:	#maximum 50 tracks (30)
 		#	break
 		box = [y1[j], x1[j], y2[j], x2[j]]
 		descs = evaluate_image(full_path, names[j], box)
@@ -91,10 +90,6 @@ def process_class(c_index):
 			descriptors.append(temp)
 		#each track contains 30 images -> take every fifth -> 6 images per track
 		j += 3
-
-	cols = ["Class-Label"]
-	for c in range(desc_size):
-		cols.append("D"+str(c))
 	
 	#save data
 	ds = np.array(descriptors)

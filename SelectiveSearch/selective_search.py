@@ -3,14 +3,9 @@ import scipy.ndimage as si
 from skimage import color,segmentation
 from regions import Region
 from operator import itemgetter
+import multiprocessing as mp
+import time
 
-
-#TODO: -> Check Bounding Boxes [Done]
-#TODO: -> Calc and handle Similarities/Merging [Done]
-#TODO: -> Think of way to save/return bounding boxes
-#TODO: -> Create Class SignChecker -> contains SVM and checks if bounding box contains a traffic sign
-#TODO: -> Before evaluating bounding box with SVM check aspect ratio to pre select uncertain cases (eg, very long or very high boxes can't contain a sign!)
-#TODO: -> Look for a way to only return 1 bounding box per sign
 
 class SelectiveSearch:
 	def __init__(self):
@@ -93,6 +88,8 @@ class SelectiveSearch:
 		elif col=="lab":
 			img = color.rgb2lab(img) #convert to lab
 		#default: RGB
+		else:
+			img = img.astype(float)
 			
 		self.im_size=float(img.shape[0]*img.shape[1])
 
@@ -124,12 +121,11 @@ class SelectiveSearch:
 			r = Region(i)
 			r.evaluate(img, self.segment, gradmap_r, gradmap_g, gradmap_b, anglemap_r, anglemap_g, anglemap_b)
 			self.regions.append(r)
-			self.bboxes.append(r.bbox)		#only testing - uncomment for application
+			self.bboxes.append(r.bbox)
 		
 		#calc region neighbours
 		for r in self.regions:
 			self.find_neighbours(r)
-		
 		
 		#calculate similiarities s(ri,rj)
 		for i,r in enumerate(self.regions):
@@ -169,24 +165,6 @@ class SelectiveSearch:
 		
 		
 		#now recalc neighbour lists of other regions
-		"""
-		for i,r in enumerate(self.regions):
-			if r.merged:
-				continue
-			
-			append = False
-		
-			if r1.id in r.neighbours: #check if r1 is in neighbours
-				self.regions[i].neighbours.remove(r1.id)
-				append = True
-			if r2.id in r.neighbours: #check if r2 is in neighbours
-				self.regions[i].neighbours.remove(r2.id)
-				append = True
-			if append: #we can replace
-				self.regions[i].neighbours.append(newr.id)
-				if i not in newr.neighbours:
-					newr.neighbours.append(i)
-		"""
 		for n in newr.neighbours:
 			if r1.id in self.regions[n].neighbours:
 				self.regions[n].neighbours.remove(r1.id)
@@ -228,7 +206,7 @@ class SelectiveSearch:
 					self.similarities.insert(i+1, temp)
 					break
 		
-		#if one should visualize also modify segmentation map
+		#if one should visualize also modify segmentation map (better use skimage.join_segmentation here!)
 		if self.visualize:
 			for i in range(newr.bbox[0], newr.bbox[2]+1):
 				for j in range(newr.bbox[1], newr.bbox[3]+1):
@@ -266,7 +244,7 @@ class SelectiveSearch:
 			
 			#print(str(num_steps) + " steps taken for Selective Search!")
 			bounding_boxes += self.bboxes
-		elif method == "deep":
+		elif method == "deep": #custom mode -> not in paper
 			k_inits = [50, 100]
 			for k in k_inits:
 				self.init_step(img, "hsv", k)
@@ -279,6 +257,16 @@ class SelectiveSearch:
 					
 				bounding_boxes += self.bboxes			
 				#print(str(num_steps) + " steps taken for Selective Search!")
+		elif method == "rough": #custom mode
+			self.init_step(img, "rgb", 200)
+			ret = True
+			num_steps = 0
+			
+			while ret:
+				ret = self.step()
+				num_steps += 1
+				
+			bounding_boxes += self.bboxes
 
 		elif method == "fast":
 			colors = ["hsv", "lab"]
