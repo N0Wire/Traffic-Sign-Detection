@@ -3,7 +3,6 @@ import scipy.ndimage as si
 from skimage import color,segmentation
 from regions import Region
 from operator import itemgetter
-import multiprocessing as mp
 import time
 
 
@@ -38,6 +37,7 @@ class SelectiveSearch:
 			br += 1
 		
 		crop = self.segment[tl:bl+1,tr:br+1]
+		"""
 		for i in range(crop.shape[0]):
 			for j in range(crop.shape[1]):
 				cur = crop[i][j]
@@ -58,6 +58,28 @@ class SelectiveSearch:
 					if is_neighbour:
 						if cur not in r.neighbours:
 							r.neighbours.append(cur)
+
+		"""
+		#https://stackoverflow.com/questions/38073433/determine-adjacent-regions-in-numpy-array
+		y = crop == r.id  # convert to Boolean
+
+		rolled = np.roll(y, 1, axis=0)          # shift down
+		rolled[0, :] = False             
+		z = np.logical_or(y, rolled)
+
+		rolled = np.roll(y, -1, axis=0)         # shift up 
+		rolled[-1, :] = False
+		z = np.logical_or(z, rolled)
+
+		rolled = np.roll(y, 1, axis=1)          # shift right
+		rolled[:, 0] = False
+		z = np.logical_or(z, rolled)
+
+		rolled = np.roll(y, -1, axis=1)         # shift left
+		rolled[:, -1] = False
+		z = np.logical_or(z, rolled)
+
+		r.neighbours = set(np.unique(np.extract(z, crop))) - set([r.id])
 	
 	
 	#calculate Similarity between Region1 and Region2
@@ -89,7 +111,7 @@ class SelectiveSearch:
 			img = color.rgb2lab(img) #convert to lab
 		#default: RGB
 		else:
-			img = img.astype(float)
+			img = img.astype(float) #to prevent overflow
 			
 		self.im_size=float(img.shape[0]*img.shape[1])
 
@@ -133,10 +155,8 @@ class SelectiveSearch:
 				temp = [i, n, self.similarity(r, self.regions[n])]
 				temp2 = [n, i, temp[2]]
 				#check if already calculated
-				temp = [i, n, self.similarity(r, self.regions[n])]
 				if temp2 not in self.similarities:
 					self.similarities.append(temp)
-		
 		self.similarities = sorted(self.similarities, key=itemgetter(2), reverse=True)
 	
 	#Merge two Regions R1 and R2 -> propagate histograms, new bounding box, new neighbours, ... -> calc new similarity
@@ -156,27 +176,39 @@ class SelectiveSearch:
 		newr.bbox = np.array([tl, tr, bl, br])
 		
 		#update neighbours
+		"""
 		for e in r1.neighbours:
 			if e not in newr.neighbours:
 					newr.neighbours.append(e)
 		for e in r2.neighbours:
 			if e not in newr.neighbours:
 					newr.neighbours.append(e)
+		"""
+		newr.neighbours = r1.neighbours.union(r2.neighbours)
 		
 		
 		#now recalc neighbour lists of other regions
 		for n in newr.neighbours:
+			"""
 			if r1.id in self.regions[n].neighbours:
 				self.regions[n].neighbours.remove(r1.id)
 			if r2.id in self.regions[n].neighbours:
 				self.regions[n].neighbours.remove(r2.id)
 			self.regions[n].neighbours.append(newr.id)
+			"""
+			self.regions[n].neighbours.discard(r1.id)
+			self.regions[n].neighbours.discard(r2.id)
+			self.regions[n].neighbours.add(newr.id)
 		
 		#remove old regions
+		"""
 		if r1.id in newr.neighbours:
 			newr.neighbours.remove(r1.id)
 		if r2.id in newr.neighbours:
 			newr.neighbours.remove(r2.id)
+		"""
+		newr.neighbours.discard(r1.id)
+		newr.neighbours.discard(r2.id)
 		
 		return newr
 	
@@ -206,16 +238,18 @@ class SelectiveSearch:
 					self.similarities.insert(i+1, temp)
 					break
 		
-		#if one should visualize also modify segmentation map (better use skimage.join_segmentation here!)
+		#if one should visualize also modify segmentation map
+		"""
 		if self.visualize:
 			for i in range(newr.bbox[0], newr.bbox[2]+1):
 				for j in range(newr.bbox[1], newr.bbox[3]+1):
 					if self.segment[i][j] == r1 or self.segment[i][j] == r2:
 						self.segment[i][j] = newr.id
+		"""
 		
 		#print("Merged " + str(r1) + " with " + str(r2))
-		self.regions[int(r1)].merged = True
-		self.regions[int(r2)].merged = True
+		#self.regions[int(r1)].merged = True
+		#self.regions[int(r2)].merged = True
 		self.num_regions += 1
 		self.bboxes.append(newr.bbox)
 		self.regions.append(newr)
@@ -225,7 +259,7 @@ class SelectiveSearch:
 		
 	#Start SelectiveSearch
 	#img = RGB Image
-	#method = "single" or "fast"
+	#method = "single" or "fast", ...
 	def run(self, img, method="single"):
 		
 		bounding_boxes = []
