@@ -6,9 +6,7 @@ determination of sign or no sign and a Spatial Transformer Network [2] combined
 with a classification Convolutional Neural Networ (CNN) gives classification results.
 For training and testing purposes the GTSDB [3] and GTSRB [4] database are used.
 
-##############################
 #   PARTS OF THE SYSTEM      #
-##############################
 
 # main.py
 This file contains the main file. You can import any image and run the whole algorithm on this image.
@@ -29,8 +27,7 @@ This trained classifier of our pretrained classifier can be loaded and all the e
 that can also be found in the  project report.
 
 
-# CLassifier (OD) #
-###################
+# Classifier (OD) #
 
 # dataloader.py
 This file contains the image class, which is used internally for saving preprocessed images, the preprocessor, which performs
@@ -57,25 +54,23 @@ It returns the final model which can be used on images without much ugly code.
 # test.py
 Not important, was just for testing.
 
-##### /Saved
+# /Saved
 Contains the saved models.
 
-##### /Plots
+# /Plots
 Contains all plots. All created plots for the classifier are saved there.
 
-##### /Temp
+# /Temp
 The saving checkpoints of the model are saved there.
 
-##### /Checkpoints
+# /Checkpoints
 Not used anymore.
 
 
 # Detection (KS) #
-##################
 
 
 # Localization (KS) #
-#####################
 
 
 ################
