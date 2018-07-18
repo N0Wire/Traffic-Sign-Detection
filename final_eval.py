@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 #own stuff
 from Classifier.dataloader import image, preprocessor, Evalset
 from Classifier.trainer import import_classifier
-from Classifier.network_utils import evaluate
+from Classifier.network_utils import evaluate, visualize_stn
 
 ###########################################
 """
@@ -64,5 +64,13 @@ if __name__ == "__main__":
     
 	# Calculate the accuracy of the pretrained model on the data from the SVM
 	accuracy = evaluate(model, dataloader, use_gpu=use_gpu)
+    
+	# Visualize the STN on sample images of SVM output
+	if use_gpu:
+		model.databatch=next(iter(dataloader))["tensor"].cuda()
+	else:
+		model.databatch=next(iter(dataloader))["tensor"].cuda()
+    
+	visualize_stn(model, filename="./Classifier/Plots/stn_svm_output.pdf")    
     
 	print("For the output of the SVM we obtain a total accuracy of the STN+CNN classifier of : " + str(accuracy))
