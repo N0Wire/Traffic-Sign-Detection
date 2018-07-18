@@ -112,7 +112,8 @@ class CNN_STN(nn.Module):
         self.fc_loc = nn.Sequential(
             nn.Linear(self.n_units_stn, 350),
             nn.ReLU(True),
-            nn.Linear(350,2)
+            #nn.Linear(350,2)
+            nn.Linear(350,2*3)
         )
         
         #Initializer all layer of STN
@@ -121,11 +122,13 @@ class CNN_STN(nn.Module):
         
         # Initialize the weights/bias with identity transformation of last STN layer
         self.fc_loc[2].weight.data.zero_()
-        self.fc_loc[2].bias.data.copy_(torch.tensor([0.8,0.1], dtype=torch.float))
+        #self.fc_loc[2].bias.data.copy_(torch.tensor([0.8,0.1], dtype=torch.float))
+        self.fc_loc[2].bias.data.copy_(torch.tensor([0.8, -0.1, 0.0, 0.1, 0.8, 0.0], dtype=torch.float))
         
         # Save stuff for evaluation:
         self.databatch = None
         self.list_thetas = []
+        self.index_thetas = []
         self.list_train_acc = []
         self.list_test_acc = []
         
@@ -149,22 +152,25 @@ class CNN_STN(nn.Module):
         
         # Regress the transformation matrices
         theta = self.fc_loc(temp)
-        theta = theta.view(-1,1,2)
-        
+        theta = theta.view(-1,2,3)
+        """
         # Select columns with zoom and rotation paramter per image in batch
-        zoom = theta.narrow(2,0,1)
-        rotation = theta.narrow(2,1,1)
+        #zoom = theta.narrow(2,0,1)
+        #rotation = theta.narrow(2,1,1)
         
         # We only allow for zooming and rotation in the trafo
         # Calculate the transformation matrix based on the two-parameter output
-        N_thetas = list(theta.shape)[0]
-        identity_tensor = Variable(torch.tensor([[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]]).repeat((N_thetas,1,1)), requires_grad=False)
-        rotation_tensor = Variable(torch.tensor([[[0.0, -1.0, 0.0], [1.0, 0.0, 0.0]]]).repeat((N_thetas,1,1)), requires_grad=False)
-        if self.use_gpu:
-            identity_tensor = identity_tensor.cuda()
-            rotation_tensor = rotation_tensor.cuda()    
+        #N_thetas = list(theta.shape)[0]
+        #identity_tensor = Variable(torch.tensor([[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]]).repeat((N_thetas,1,1)), requires_grad=False)
+        #rotation_tensor = Variable(torch.tensor([[[0.0, -1.0, 0.0], [1.0, 0.0, 0.0]]]).repeat((N_thetas,1,1)), requires_grad=False)
+        #if self.use_gpu:
+        #    identity_tensor = identity_tensor.cuda()
+        #    rotation_tensor = rotation_tensor.cuda()    
 
-        theta = zoom*identity_tensor + rotation*rotation_tensor
+        #theta = zoom*identity_tensor + rotation*rotation_tensor
+        """
+        
+        
         
         # Apply the transformation
         grid = nn.functional.affine_grid(theta, x.size())
@@ -195,7 +201,7 @@ class CNN_STN(nn.Module):
         
         return out, theta
         
-    def save_stn(self):
+    def save_stn(self, epoch=0, batch=0):
         """
         This function is used to save the transformed images of a sample batch.
         It can be used at any point of training and saves the 3 color channels of
@@ -210,7 +216,7 @@ class CNN_STN(nn.Module):
             out_grid = convert_image_np(torchvision.utils.make_grid(transformed_input_tensor.narrow(1,0,3)).cpu())
 
             self.list_thetas.append(out_grid)
-        
+            self.index_thetas.append([epoch,batch])
         return None
     
     def save_acc(self, dataloader, x_value, split="train"):

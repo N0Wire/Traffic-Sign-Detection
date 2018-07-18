@@ -113,7 +113,7 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
                 # After that we use the classification loss (which is a convex fct.)
                 # to optimize all parameters (including STN)
                 else:
-                    loss = loss2
+                    loss = loss2 + 0.001*loss1
             
             # Calculate Batch accuracies
             acc = torch.mean(torch.eq(torch.argmax(predictions, dim=-1),
@@ -125,30 +125,33 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
             # Backward propagation
             loss.backward()
             
+            # TESTING: Gradient clipping
+            torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=10)
+            
             # Update
             Optimizer.step()
             
             # Set batch accuracy and loss
-            if epoch >0 :
-                loss_list.append([train_step, loss])
-                batch_acc_list.append([train_step, acc])
+            loss_list.append([train_step, loss])
+            batch_acc_list.append([train_step, acc])
             
             # Write the current batch accuracy and show the current trafo
-            if train_step % 50 == 0:
+            if train_step % 500 == 0:
                 tqdm.write('{}: Batch-Accuracy = {}, Loss = {}, Epoch = {}'\
                           .format(train_step, float(acc), float(loss), epoch))
                 if stn:
                     visualize_stn(model)
+            
+            
+            # Evaluation set up: Save stn(grid) in most interesting epochs in beginning 
+            if stn and (epoch == 6 or epoch == 7) and batch_index < 50:
+                model.save_stn(epoch=epoch, batch=batch_index)
         
-        # Save the model after every fourth epoch
-        if epoch %4 == 0 and epoch > 0:
-            #save_stn_cnn(model, './Temp/{}-{}'.format(checkpoint_name, epoch))
-            torch.save(model.state_dict(), '{}-{}.ckpt'.format(checkpoint_name, epoch))
-        
-        # Evaluation set up: Save theta after all epochs 
+        # Evaluation set up: Save stn(grid) after all epochs 
         if stn:
-            model.save_stn()
-        # Save the trainset accuracy after every epooch
+            model.save_stn(epoch=epoch, batch=0)
+        
+        # Save the train and testset accuracy after every epooch
         model.save_acc(dataloader, epoch, split="train")
         if dataloader_test is not None:
             model.save_acc(dataloader_test, epoch, split="test")
@@ -177,13 +180,19 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
                 visualize_scalar(data, filename="./Plots/train_test_acc.pdf", title="Accuracy of Datasets", xname="epoch", 
                              yname="accuracy", show=False, scalars=2, labels=labels)
     
-    # Save all scalar values to logger for later use
-    if logger is not None:
-        logger.loss_list = loss_list
-        logger.batch_acc_list = batch_acc_list        
-        logger.test_acc_list = model.list_test_acc
-        if dataloader_test is not None:
-            logger.train_acc_list = model.list_train_acc
+        # Save the model after every second epoch
+        if epoch %1 == 0 and epoch > 0:
+            save_stn_cnn(model, './Temp/{}-{}'.format(checkpoint_name, epoch))
+            #torch.save(model.state_dict(), '{}-{}.ckpt'.format(checkpoint_name, epoch))
+        
+    
+        # Save all scalar values to logger for later use
+        if logger is not None:
+            logger.loss_list = loss_list
+            logger.batch_acc_list = batch_acc_list        
+            logger.test_acc_list = model.list_test_acc
+            if dataloader_test is not None:
+                logger.train_acc_list = model.list_train_acc
     
     return None
     
@@ -236,17 +245,17 @@ def visualize_stn(model, filename="./Plots/stn_test_2.pdf"):
             torchvision.utils.make_grid(transformed_input_tensor.narrow(1,0,3)).cpu())
 
         # Plot the results of STN side-by-side
-        fig = plt.figure(figsize=(8,4), dpi=100)
+        fig = plt.figure(figsize=(8,2.3), dpi=100)
         
         fig.add_subplot(1,2,1)
         plt.imshow(in_grid)
         plt.xticks([]), plt.yticks([])
-        plt.title('Dataset Images', fontsize=9)
+        plt.title('Dataset Images', fontsize=13)
     
         fig.add_subplot(1,2,2)
         plt.imshow(out_grid)
         plt.xticks([]), plt.yticks([])
-        plt.title('Transformed Images', fontsize=9)
+        plt.title('Transformed Images', fontsize=13)
     
         fig.tight_layout()
 
@@ -269,7 +278,7 @@ def visualize_scalar(datalist, filename, title, xname, yname, show=False, scalar
     """
     datalist = np.array(datalist)
     
-    fig_temp = plt.figure(dpi=100)
+    fig_temp = plt.figure(figsize=(3.8,2.9), dpi=100)
         
     fig_temp.add_subplot(1,1,1)
     for i in range(scalars):

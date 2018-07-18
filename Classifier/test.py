@@ -56,7 +56,7 @@ if __name__ == "__main__":
         logger = Logger()
         
         model.databatch=next(iter(dataloader_train))["tensor"].cuda()
-        train(model, dataloader_train, n_epochs=50, checkpoint_name="test", use_gpu=use_gpu, stn=True, dataloader_test=dataloader_test, logger=logger)
+        train(model, dataloader_train, n_epochs=10, checkpoint_name="test", use_gpu=use_gpu, stn=True, dataloader_test=dataloader_test, logger=logger)
     
         print("Train accuracy: " + str(evaluate(model, dataloader_train)))
         print("Test accuracy: " + str(evaluate(model, dataloader_test)))
@@ -67,10 +67,8 @@ if __name__ == "__main__":
 
     else:
         trainset = dataset(filepath_train, split="train")
-        trainset.subset(0.1, fractional=True)
     
         testset = dataset(filepath_test, split="test")
-        testset.subset(0.1, fractional=True)
     
         print("Trainset: " + str(len(trainset)))
         print("Testset: " + str(len(testset)))
@@ -90,19 +88,22 @@ if __name__ == "__main__":
         print(load_stn_data("./Saved/stn_data_test"))
         logger.load("./Saved/logger_test")
         
-        print(model.list_thetas)
+        #print(model.list_thetas)
         
         print("Train accuracy: " + str(evaluate(model, dataloader_train)))
         print("Test accuracy: " + str(evaluate(model, dataloader_test)))
         
         fig = plt.figure(figsize=(8,5), dpi=100)
+        #print(model.index_thetas.shape)
         
-        epoch_list=[0,1,2,3,3,3]
+        theta_indices = np.array(model.index_thetas)
+        
+        epoch_list=[0,6,16,56,57,59]
         for i in range(6):
             fig.add_subplot(2,3,1+i)
             plt.imshow(model.list_thetas[epoch_list[i]])
             plt.xticks([]), plt.yticks([])
-            plt.title('Transformed Images ' + str(epoch_list[i]) + ' epochs', fontsize=9)
+            plt.title('Transformed Images ' + str(theta_indices[epoch_list[i],0]+1) + ' epochs\ndatabatch: ' + str(theta_indices[epoch_list[i],1]+1), fontsize=9)
     
         fig.tight_layout()
 

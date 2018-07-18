@@ -272,18 +272,21 @@ class dataset(Dataset):
         
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
+    
     filepath_this_file = os.path.dirname(os.path.abspath(__file__))
-    filepath_train = os.path.join(filepath_this_file + "/GTSRB/Final_Training/Images")
-    filepath_test = os.path.join(filepath_this_file + "/GTSRB/Final_Test/Images")
+    project_path,_ = os.path.split(filepath_this_file)
+    data_path = os.path.join(project_path + "/Data")
+    filepath_train = os.path.join(data_path + "/GTSRB/Final_Training/Images")
+    filepath_test = os.path.join(data_path + "/GTSRB/Final_Test/Images")
     
-    trainset = dataset(filepath_train, split="train")
-    trainset.subset(100, False)
+    #trainset = dataset(filepath_train, split="train")
+    #trainset.subset(100, False)
     
-    print(len(trainset))
-    for i in range(10):
-        print(trainset[i])
+    #print(len(trainset))
+    #for i in range(10):
+    #    print(trainset[i])
     
-    """
+    
     testset = dataset(filepath_test, split="test")
     
     print(len(testset))
@@ -298,40 +301,43 @@ if __name__ == "__main__":
     for i in range(10):
         print(testset[i])
     
-    fig = plt.figure(figsize=(1.5,15), dpi=100)
-    for j in range(30):
+    """
+    Here we create the images of the preprocessor used in the report.
+    """
+    
+    fig = plt.figure(figsize=(9.6,5), dpi=100)
+    for j in range(4):
         
         original = misc.imread(testset[j]['filepath'])
         img = testset[j]['numpy'][...,:3]
         canny = testset[j]['numpy'][...,3]
         
         
-        fig.add_subplot(30,3,3*j+1)
+        fig.add_subplot(3,5,j+1)
         plt.imshow(original)
         plt.xticks([]), plt.yticks([])
-        plt.title("Original \n" + str(original.shape), fontsize=3)    
+        plt.title("Original Image")    
         
-        fig.add_subplot(30,3,3*j+2)
+        fig.add_subplot(3,5,j+6)
         plt.imshow(img)
-        plt.title("Preprocessed \n" + str(img.shape), fontsize=3)    
+        plt.title("Preprocessed Image")    
         plt.xticks([]), plt.yticks([])
         
-        fig.add_subplot(30,3,3*j+3)
+        fig.add_subplot(3,5,j+11)
         plt.imshow(canny, cmap="gray")
-        plt.title("Canny image", fontsize=3)    
+        plt.title("Canny Image")    
         plt.xticks([]), plt.yticks([])
         
     fig.tight_layout()
 
     plt.show(fig)
-    fig.savefig('hog_test.pdf', dpi=300)
+    fig.savefig('preprocessor.pdf', dpi=300)
 
 
-    dataloader = DataLoader(testset, batch_size=32, shuffle=True)
-    for i, batch in enumerate(dataloader):
-        images_batch, ids_batch = \
-                batch['tensor'], batch['id']
-        #print(batch)
-        print(ids_batch)
-        
-    """   
+    #dataloader = DataLoader(testset, batch_size=32, shuffle=True)
+    #for i, batch in enumerate(dataloader):
+    #    images_batch, ids_batch = \
+    #            batch['tensor'], batch['id']
+    #    #print(batch)
+    #    print(ids_batch)
+   

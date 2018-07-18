@@ -109,16 +109,21 @@ def save_stn_cnn(model, filename):
     torch.save(model.databatch, filename + "_db.pt")
     
     # Save STN examples (list_thetas)
-    save_stn_data(model, filename + "_stnd.pt")
+    save_stn_data(model, filename + "_stnd")
     
-    # Save list_train_acc and list_test_acc
+    # Save list_train_acc and list_test_acc and index_thetas
     train = model.list_train_acc
-    save_array = np.stack(train)
-    np.save(filename + "_tr.npy", save_array)
+    train_array = np.stack(train)
+    #np.save(filename + "_tr.npy", train_array)
     
     test = model.list_test_acc
-    save_array = np.stack(test)
-    np.save(filename + "_ts.npy", save_array)
+    test_array = np.stack(test)
+    #np.save(filename + "_ts.npy", test_array)
+    
+    index = model.index_thetas
+    index_array = np.stack(index)
+    np.savez(filename + "_scalar.npz", train=train_array, test=test_array, index=index_array)
+    
     
     return None
 
@@ -136,16 +141,22 @@ def load_stn_cnn(model, filename):
     model.databatch = torch.load(filename + "_db.pt")
     
     # Load STN examples (list_thetas)
-    load_stn_data(filename + "_stnd.pt", model)
+    load_stn_data(filename + "_stnd", model)
     
     # Load list_train_acc and list_test_acc
-    train_array = np.load(filename + "_tr.npy")
+    loaded_data = np.load(filename + "_scalar.npz")
+    
+    train_array = loaded_data['train']
     train_list = train_array.tolist()
     model.list_train_acc = train_list
 
-    test_array = np.load(filename + "_ts.npy")
+    test_array = loaded_data['test']
     test_list = test_array.tolist()
     model.list_test_acc = test_list
+    
+    index_array = loaded_data['index']
+    index_list = index_array.tolist()
+    model.index_thetas = index_list
     
     return None
 
