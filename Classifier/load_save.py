@@ -15,7 +15,7 @@ import torch.nn as nn
 import torchvision
 
 # IMPORT PROJECT FILES
-from dataloader import dataset
+from Classifier.dataloader import dataset
 
 class Logger:
     """

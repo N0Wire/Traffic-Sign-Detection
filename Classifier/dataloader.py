@@ -265,7 +265,20 @@ class dataset(Dataset):
             self.list_labels = self.list_labels[:im_per_class]
             
             return None            
-            
+
+class Evalset(Dataset):
+    """
+    This class is constructed from a list of image-objects and is used for
+    the final evaluation of the accuracy on Kim's output
+    """
+    def __init__(self, list_images):
+        """
+        Arguments:  list_images - List of image-objects  
+        """
+        self.list_images = list_images
+        
+    def __getitem__(self, idx):
+        return self.list_images[idx]._data_()
                 
                 
 # Testing stuff

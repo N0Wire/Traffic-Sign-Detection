@@ -20,9 +20,9 @@ from torch.utils.data import DataLoader
 import torchvision
 
 # IMPORT PROJECT FILES
-from dataloader import dataset
-from network_utils import train, convert_image_np, evaluate, visualize_stn
-from load_save import Logger, save_stn_data, save_stn_cnn, load_stn_data, load_stn_cnn
+from Classifier.dataloader import dataset
+from Classifier.network_utils import train, convert_image_np, evaluate, visualize_stn
+from Classifier.load_save import Logger, save_stn_data, save_stn_cnn, load_stn_data, load_stn_cnn
 
 class CNN_STN(nn.Module):
     '''

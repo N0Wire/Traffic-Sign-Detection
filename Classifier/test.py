@@ -17,10 +17,10 @@ import os
 import numpy as np
 
 # IMPORT PROJECT FILES
-from dataloader import dataset
-from network_utils import train, convert_image_np, evaluate, visualize_stn, visualize_scalar
-from load_save import Logger, save_stn_data, save_stn_cnn, load_stn_data, load_stn_cnn
-from network import CNN_STN
+from Classifier.dataloader import dataset
+from Classifier.network_utils import train, convert_image_np, evaluate, visualize_stn, visualize_scalar
+from Classifier.load_save import Logger, save_stn_data, save_stn_cnn, load_stn_data, load_stn_cnn
+from Classifier.network import CNN_STN
 
 
 if __name__ == "__main__":

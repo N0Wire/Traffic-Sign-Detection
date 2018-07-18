@@ -16,9 +16,10 @@ from tqdm import tqdm
 from torch.nn import CrossEntropyLoss, SmoothL1Loss
 import torchvision
 from matplotlib import pyplot as plt
+import os
 
 # IMPORT PROJECT FILES
-from load_save import save_stn_cnn
+from Classifier.load_save import save_stn_cnn
        
  
 def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=True, stn=True, dataloader_test=None, logger=None):
@@ -33,7 +34,7 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
                 use_gpu - Boolean stating whether CUDA shall be used (check first!)
                 stn - (boolean) True if model is a CNN_STN instance
     '''
-
+    filepath_this_file = os.path.dirname(os.path.abspath(__file__))
     if use_gpu:
         model.cuda()
     
@@ -158,14 +159,14 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
 
         ###### Update the plots of loss, batch accuracy, test and train accuracy #####
         if epoch > 0:
-            visualize_scalar(loss_list, filename="./Plots/loss.pdf", title="Loss of total network", xname="batch", 
+            visualize_scalar(loss_list, filename= str(filepath_this_file) + "/Plots/loss.pdf", title="Loss of total network", xname="batch", 
                          yname="loss", show=False, scalars=1, labels=None, ylim=(0,6))
         
-            visualize_scalar(batch_acc_list, filename="./Plots/batch_acc.pdf", title="Accuracy of batch", xname="batch", 
+            visualize_scalar(batch_acc_list, filename= str(filepath_this_file) + "/Plots/batch_acc.pdf", title="Accuracy of batch", xname="batch", 
                          yname="accuracy", show=False, scalars=1, labels=None)
         
             if dataloader_test is None:
-                visualize_scalar(model.list_train_acc, filename="./Plots/train_acc.pdf", title="Accuracy of Trainset", xname="epoch", 
+                visualize_scalar(model.list_train_acc, filename= str(filepath_this_file) + "/Plots/train_acc.pdf", title="Accuracy of Trainset", xname="epoch", 
                              yname="accuracy", show=False, scalars=1, labels=None)
             else:
                 # Build data array with train and test data
@@ -177,12 +178,12 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
                 data[:,0:2] = train
                 data[:,2:4] = test
                 labels = ["Trainset", "Testset"]
-                visualize_scalar(data, filename="./Plots/train_test_acc.pdf", title="Accuracy of Datasets", xname="epoch", 
+                visualize_scalar(data, filename= str(filepath_this_file) + "/Plots/train_test_acc.pdf", title="Accuracy of Datasets", xname="epoch", 
                              yname="accuracy", show=False, scalars=2, labels=labels)
     
         # Save the model after every second epoch
         if epoch %1 == 0 and epoch > 0:
-            save_stn_cnn(model, './Temp/{}-{}'.format(checkpoint_name, epoch))
+            save_stn_cnn(model, str(filepath_this_file) + '/Temp/{}-{}'.format(checkpoint_name, epoch))
             #torch.save(model.state_dict(), '{}-{}.ckpt'.format(checkpoint_name, epoch))
         
     
@@ -226,7 +227,7 @@ def evaluate(model, dataloader, use_gpu=True):
     return acc
 
 
-def visualize_stn(model, filename="./Plots/stn_test_2.pdf"):
+def visualize_stn(model, filename="./Classifier/Plots/stn_test_2.pdf"):
     """
     For the sample databatch saved in the model we visualize the current STN
     transformation and save it to a file.

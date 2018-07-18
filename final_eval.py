@@ -1,9 +1,13 @@
 import numpy as np
 import pandas as pd
+import torch
 from skimage import io
+from torch.utils.data import DataLoader
 
 #own stuff
-from Classifier.dataloader import image
+from Classifier.dataloader import image, preprocessor, Evalset
+from Classifier.trainer import import_classifier
+from Classifier.network_utils import evaluate
 
 ###########################################
 """
@@ -23,7 +27,8 @@ if __name__ == "__main__":
 	info_table = pd.read_csv(path_to_infos + "gt.txt", delimiter=";", header=None)
 	infos = np.array(info_table)[852:,:] #gt data needed at i=853-1s
 
-	Images = [] #array of image object
+	Images = [] #list of image object
+	preprocessor = preprocessor(size=(32,32), do_canny=True, split="train") # Load Preprocessor for the images
 	#load boxes
 	max_runnum = 90
 	for run_num in range(61, max_runnum+1):
@@ -37,14 +42,27 @@ if __name__ == "__main__":
 			for e in infos:
 				if e[0] == im_name:
 					if not np.array_equal(obs[box_index],[0,0,0,0]): #best overlap exists
-						box = obs[box_index]
-						temp = image(path_to_infos+im_name, e[5], None,  img[box[0]:box[2]+1,box[1]:box[3]+1])
-						Images.append(temp)
+						 box = obs[box_index]                         
+						 temp = image(path_to_infos+im_name, e[5], preprocessor,  img[box[0]:box[2]+1,box[1]:box[3]+1])
+						 Images.append(temp)
 						#io.imsave("Test/"+str(run_num)+"_"+str(box_index)+".png", img[box[0]:box[2]+1,box[1]:box[3]+1]) #test output
 					box_index += 1
 
-	#Load CNN-Model
-
-	#feed CNN with data
-	
-	#classify
+	#Load our pretrained CNN-Model
+	model, logger,_ = import_classifier()
+    
+	# Construct dataset and dataloader with Images
+	evaluationset = Evalset(Images)
+	dataloader = DataLoader(evaluationset, batch_size=32, shuffle=True)
+    
+	use_gpu = torch.cuda.is_available()
+	if not use_gpu:
+		print("Warning! No CUDA available. This is untested!")
+    
+	if use_gpu:
+		model.cuda()
+    
+	# Calculate the accuracy of the pretrained model on the data from the SVM
+	accuracy = evaluate(model, dataloader, use_gpu=use_gpu)
+    
+	print("For the output of the SVM we obtain a total accuracy of: " + str(accuracy))
