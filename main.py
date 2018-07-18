@@ -24,7 +24,7 @@ def find_traffic_signs(img, visualize=False):
 	
     #Network here
 	preprocessor = preprocessor()
-    model,_,_ = import_classifier()
+	model,_,_ = import_classifier()
     
     
 	proposals = s_search.run(img, method="deep")
@@ -36,10 +36,10 @@ def find_traffic_signs(img, visualize=False):
 		Images.append(im)
 	
 	#put images in classifier
-    ClassIds = []
-    TrafficSigns = []
+	ClassIds = []
+	TrafficSigns = []
 
-    for image in Images:
+	for image in Images:
         prediction = predict(model, image)
         ClassIds.append(prediction)
         signname = 

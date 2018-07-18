@@ -279,7 +279,9 @@ class Evalset(Dataset):
         
     def __getitem__(self, idx):
         return self.list_images[idx]._data_()
-                
+    
+    def __len__(self):
+        return len(self.list_images)            
                 
 # Testing stuff
         
