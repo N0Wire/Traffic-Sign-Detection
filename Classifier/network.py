@@ -6,7 +6,7 @@ SS18
 
 Project
 
-@author: Kim-Louis Simmoteit, Oliver Drozdowski
+@author: Oliver Drozdowski
 This code partially contains code from the solution of exercise 8.
 """
 
