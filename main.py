@@ -44,8 +44,7 @@ def find_traffic_signs(img, visualize=False, path=None):
     # Create preprocessor and import pretrained model
 	preproc = preprocessor()
 	model,_,_ = import_classifier()
-    
-    
+	
 	proposals = s_search.run(img, method="deep")
 	signs = checker.check(img, proposals)
 	
@@ -77,6 +76,9 @@ def find_traffic_signs(img, visualize=False, path=None):
 		for i,s in enumerate(signs): #ground truth data
 			rect = patches.Rectangle((s[1], s[0]),np.abs(s[3]-s[1]), np.abs(s[2]-s[0]), linewidth=1, edgecolor="b", facecolor="none")
 			plt.gca().add_patch(rect)
+			xstart = s[1]+(s[3]-s[1])*0.1
+			ystart = s[0]+(s[2]-s[0])*0.1
+			plt.text(xstart, ystart, TrafficSignNames[i], fontsize=4)
 		plt.savefig(path)
         
 	bounding_list = signs
@@ -85,7 +87,7 @@ def find_traffic_signs(img, visualize=False, path=None):
     
 if __name__ == "__main__":
 	#load images
-	img1 = io.imread("Images/img1.jpg")
+	img1 = io.imread("Images/img5.jpg")
 	
 	#do stuff
-	find_traffic_signs(img1, True, "Images/img1_res.png")
+	find_traffic_signs(img1, True, "Images/img5_res.png")
