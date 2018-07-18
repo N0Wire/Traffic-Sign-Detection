@@ -6,7 +6,7 @@ from skimage import io
 #own stuff
 from Localization.selective_search import SelectiveSearch
 from Detection.sign_checker import SignChecker
-from Classifier.dataloader import image
+from Classifier.dataloader import image, preprocessor
 from Classifier.signname import gtsrb_signname
 from Classifier.trainer import import_classifier
 from Classifier.network_utils import predict
@@ -42,7 +42,7 @@ def find_traffic_signs(img, visualize=False, path=None):
 	checker.load("Detection/SVMs/11_")
 	
     # Create preprocessor and import pretrained model
-	preprocessor = preprocessor()
+	preproc = preprocessor()
 	model,_,_ = import_classifier()
     
     
@@ -52,7 +52,7 @@ def find_traffic_signs(img, visualize=False, path=None):
 	# Create list of image objects, which are needed for the CNN_STN classifier    
 	Images = [] #list of image objects
 	for s in signs:
-		im = image("", -1, preprocessor, img[s[0]:s[2]+1,s[1]:s[3]+1])
+		im = image("", -1, preproc, img[s[0]:s[2]+1,s[1]:s[3]+1])
 		Images.append(im)
 	
 	# Feed all the image objects into the classifier to obtain the classids and names
