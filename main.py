@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from skimage import io
 
 #own stuff
@@ -19,7 +20,7 @@ detector over them.
 """
 ###########################################
 
-def find_traffic_signs(img, visualize=False):
+def find_traffic_signs(img, visualize=False, path=None):
 	"""
 	This function applies the entire algorithm on an image represented as a numpy array (e.g. from imread)
 	First bounding boxes for region proposals are calculated via the Selective Search Algorithm
@@ -30,6 +31,7 @@ def find_traffic_signs(img, visualize=False):
 	Lastly, the image is visualized with bounding boxes if wanted
 	Arguments:     img - image as numpy array
                     visualize - (boolean) whether to plot and save the image with bounding boxes
+                    path - (string) path for saving image
 	Return:    bounding_list - list of bounding boxes in format []
                 ClassIds - list of corresponding classids
                 TrafficSignNames - ist of corresponding names of signs
@@ -57,14 +59,25 @@ def find_traffic_signs(img, visualize=False):
 	ClassIds = []
 	TrafficSignNames = []
     
-	for image in Images:
+	for im in Images:
 		# Predict class id 
-		prediction = predict(model, image)
+		prediction = predict(model, im)
 		ClassIds.append(prediction)
         
 		# Look up name corresponding to classid
 		signname = gtsrb_signname(prediction)
 		TrafficSignNames.append(signname)
+	
+	#visualize found data
+	if visualize:
+		plt.figure(1)
+		plt.clf()
+		plt.axis("off")
+		plt.imshow(img)
+		for i,s in enumerate(signs): #ground truth data
+			rect = patches.Rectangle((s[1], s[0]),np.abs(s[3]-s[1]), np.abs(s[2]-s[0]), linewidth=1, edgecolor="b", facecolor="none")
+			plt.gca().add_patch(rect)
+		plt.savefig(path)
         
 	bounding_list = signs
 	        
@@ -72,5 +85,7 @@ def find_traffic_signs(img, visualize=False):
     
 if __name__ == "__main__":
 	#load images
+	img1 = io.imread("Images/img1.jpg")
 	
 	#do stuff
+	find_traffic_signs(img1, True, "Images/img1_res.png")
