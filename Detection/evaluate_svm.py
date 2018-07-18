@@ -1,12 +1,26 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-#evaluates collect data from test-set for a given SVM
-#-> Mean Best Overlap, Precision, Recall
+###########################################
+"""
+author: Kim-Louis Simmoteit
+
+This script evaluates data from the test-set of the 
+GTSDB dataset for a given SVM.
+-> Mean Best Overlap, Precision, Recall
+"""
+###########################################
+
 
 #loads all data needed for localization (all 900 images)
-path1 = "Test_Runs/11/"
-path2 = "Evaluation/"
+svm_prefix = "11_"
+path_load = "./Runs/"+svm_prefix[0:len(svm_prefix)-1]+"/"
+path_output = "./Plots/"
+
+if not os.path.exists(path_output):
+	os.makedirs(path_output)
+
 best_overlapps = []
 times = []
 num_wbos = 0.0		#number of wrongly detected signs
@@ -15,10 +29,10 @@ num_zeros = 0.0		#number of not detected signs
 
 max_runnum = 75
 for run_num in range(61, max_runnum+1):
-	bos = np.load(path1+"overlap_"+str(run_num)+".npy")
-	ts = np.load(path1+"times_"+str(run_num)+".npy")
-	wbos = np.load(path1+"wrongboxes_"+str(run_num)+".npy")
-	obos = np.load(path1+"overlapboxes_"+str(run_num)+".npy")
+	bos = np.load(path_load+"overlap_"+str(run_num)+".npy")
+	ts = np.load(path_load+"times_"+str(run_num)+".npy")
+	wbos = np.load(path_load+"wrongboxes_"+str(run_num)+".npy")
+	obos = np.load(path_load+"overlapboxes_"+str(run_num)+".npy")
 	num_wbos += float(wbos.shape[0])
 	num_bos += float(bos.shape[0])
 	
@@ -53,7 +67,7 @@ plt.ylabel("#Entries")
 plt.hist(best_overlapps, bins=25, label="IoU", edgecolor="black")
 plt.axvline(x=mbo, color="r", label="Mean={:.3f}".format(mbo))
 plt.legend()
-plt.savefig(path1+"test_iou_histogram.pdf")
+plt.savefig(path_output+"test_iou_histogram.pdf")
 
 plt.figure(2)
 plt.title("Time-Histogram")
@@ -62,4 +76,4 @@ plt.ylabel("#Entries")
 plt.hist(times, bins=25, label="Time", edgecolor="black")
 plt.axvline(x=mt, color="r", label="Mean={:.3f}".format(mt))
 plt.legend()
-plt.savefig(path1+"test_time_histogram.pdf")
+plt.savefig(path_output+"test_time_histogram.pdf")

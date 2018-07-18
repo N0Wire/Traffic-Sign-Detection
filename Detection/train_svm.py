@@ -1,15 +1,27 @@
 import numpy as np
 import os
 
+#own stuff
 from sign_checker import SignChecker
 
-output_path = "./SVMs/"
+###########################################
+"""
+author: Kim-Louis Simmoteit
+
+This script trains a SVM with the
+output of preprocess_*.py.
+"""
+###########################################
+
+output_path = "./SVMs/" #path to folders with SVM
 if not os.path.exists(output_path):
 	os.makedirs(output_path)
 
+svm_prefix = "11_"	#SVM prefix
+
 #load all calculated HOG-Descriptors
 load_path = "./Training_data/"
-max_run = 60
+max_run = 60  #only take runs with have the first 600 images of GTSDB as origin
 data = np.load(load_path+"gtsdb.npy")
 for i in range(1,max_run+1):
 	if i==58: #58 has no sign and no negative samples -> neglect
@@ -22,7 +34,7 @@ for i in range(43):
 print("Data loaded! Training SVM ...")
 sc = SignChecker()
 sc.train(data[:,1:],data[:,0])
-sc.save(output_path+"11_")
+sc.save(output_path+svm_prefix)
 
 #parameters:
 #1 - C=10 gamma=5 #start (forgot transform_sqrt at full image!)			->RIP

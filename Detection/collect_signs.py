@@ -22,10 +22,10 @@ and push them into the SVM to get only bounding boxes which are signs.
 
 #Settings
 plot = False
-
+svm_prefix = "11_"
 
 #create directories if they don't exist
-output_path = "./Runs/"
+output_path = "./Runs/"+svm_prefix[0:len(svm_prefix)-1]+"/"
 if not os.path.exists(output_path):
 	os.makedirs(output_path)
 
@@ -34,7 +34,7 @@ if plot:
 	if not os.path.exists(output_path_im):
 		os.makedirs(output_path_im)
 
-svm_path = "SVMs/11_"
+svm_path = "./SVMs/"+svm_prefix
 
 
 #parse file
