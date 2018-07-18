@@ -127,7 +127,7 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
             loss.backward()
             
             # TESTING: Gradient clipping
-            torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=10)
+            #torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=10)
             
             # Update
             Optimizer.step()
@@ -226,6 +226,18 @@ def evaluate(model, dataloader, use_gpu=True):
 
     return acc
 
+def predict(model, image):
+    """
+    The predict function gives a prediction of the classid for a given image object.
+    Arugments:  model - CNN_STN instance
+                image - image object
+    """
+    tensor = image.tensor.view((1,4,32,32))
+    prediction,_ = model(tensor)
+    prediction = prediction.data
+    prediction = torch.argmax(prediction, dim=-1)
+    return prediction.data.numpy()[0]
+    
 
 def visualize_stn(model, filename="./Classifier/Plots/stn_test_2.pdf"):
     """

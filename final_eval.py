@@ -28,7 +28,7 @@ if __name__ == "__main__":
 	infos = np.array(info_table)[852:,:] #gt data needed at i=853-1s
 
 	Images = [] #list of image object
-	preprocessor = preprocessor(size=(32,32), do_canny=True, split="train") # Load Preprocessor for the images
+	preprocessor = preprocessor() # Load Preprocessor for the images
 	#load boxes
 	max_runnum = 90
 	for run_num in range(61, max_runnum+1):
@@ -65,4 +65,4 @@ if __name__ == "__main__":
 	# Calculate the accuracy of the pretrained model on the data from the SVM
 	accuracy = evaluate(model, dataloader, use_gpu=use_gpu)
     
-	print("For the output of the SVM we obtain a total accuracy of: " + str(accuracy))
+	print("For the output of the SVM we obtain a total accuracy of the STN+CNN classifier of : " + str(accuracy))
