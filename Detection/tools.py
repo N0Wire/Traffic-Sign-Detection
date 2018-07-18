@@ -1,5 +1,6 @@
 import numpy as np
 from skimage import transform, feature
+from scipy.ndimage.interpolation import zoom
 
 ###########################################
 """
@@ -32,7 +33,7 @@ def overlap(box1, box2):
 
 #Calculate HOG-Descriptor from an (part of an) image
 def HogDescriptor(cropped):
-	resized = transform.resize(cropped, (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant")
+	resized = transform.resize(cropped, (SIZE_X, SIZE_Y), anti_aliasing=True, mode="constant") #uncomment for newer scikit-image versions!
 	desc = feature.hog(resized, pixels_per_cell=(6,6), cells_per_block=(2,2), visualize=False, block_norm="L1", transform_sqrt=True, multichannel=True)
 	#desc = np.concatenate((resized[:,:,0].flatten(),resized[:,:,1].flatten(),resized[:,:,2].flatten()))
 	return desc #desc.flatten()
