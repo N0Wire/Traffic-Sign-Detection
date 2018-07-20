@@ -78,7 +78,8 @@ def find_traffic_signs(img, visualize=False, path=None):
 			plt.gca().add_patch(rect)
 			xstart = s[1]+(s[3]-s[1])*0.1
 			ystart = s[0]+(s[2]-s[0])*0.1
-			plt.text(xstart, ystart, TrafficSignNames[i], fontsize=4)
+			t = plt.text(xstart, ystart, TrafficSignNames[i], fontsize=8)
+			t.set_bbox(dict(facecolor="red", alpha=0.5, edgecolor="red"))
 		plt.savefig(path)
         
 	bounding_list = signs
@@ -87,7 +88,8 @@ def find_traffic_signs(img, visualize=False, path=None):
     
 if __name__ == "__main__":
 	#load images
-	img1 = io.imread("Images/img5.jpg")
+	img_name = "Images/img4" #image 1-8
+	img1 = io.imread(img_name+".jpg")
 	
 	#do stuff
-	find_traffic_signs(img1, True, "Images/img5_res.png")
+	find_traffic_signs(img1, True, img_name+"_res.png")
