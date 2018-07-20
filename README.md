@@ -8,20 +8,20 @@ For training and testing purposes the GTSDB [3] and GTSRB [4] database are used.
 
 #   PARTS OF THE SYSTEM      #
 
-# main.py
+# main.py (OD+KS)
 This file contains the main file. You can import any image and run the whole algorithm on this image.
 The function in this file will output a plot with the found bounding boxes and the name of the traffic sign.
 It takes some time, but try it out! We have included pictures from Heidelberg. :)
 
-# final_eval.py
+# final_eval.py (OD+KS)
 This file does the final evaluation of the combined system. For the trainset of the GTSDB the bounding boxes
 of the Selective Search + SVM are loaded and fed into the CNN+STN classifier. The accuracy is calculated.
 Additionally the result of the STN on some of the bounding boxes is plotted.
 
-# preprocessor_plot.py
+# preprocessor_plot.py (OD)
 The preprocessor and dataloader is tested. The plot from the project report of the preprocessor result is created.
 
-# cnn_stn_plot.py
+# cnn_stn_plot.py (OD)
 This file can be used to train and save a CNN+STN classifier (which can be used in final_eval and main if flag is changed)
 This trained classifier of our pretrained classifier can be loaded and all the evaluation plots are created
 that can also be found in the  project report.
