@@ -72,6 +72,7 @@ def save_stn_data(model, filename):
     
     
     list_imgs = [out_grid] + model.list_thetas
+                
     # Convert list of images into single numpy array
     save_array = np.stack(list_imgs).astype(np.uint8)
     np.save(filename + ".npy", save_array)
@@ -114,11 +115,9 @@ def save_stn_cnn(model, filename):
     # Save list_train_acc and list_test_acc and index_thetas
     train = model.list_train_acc
     train_array = np.stack(train)
-    #np.save(filename + "_tr.npy", train_array)
     
     test = model.list_test_acc
     test_array = np.stack(test)
-    #np.save(filename + "_ts.npy", test_array)
     
     index = model.index_thetas
     index_array = np.stack(index)
