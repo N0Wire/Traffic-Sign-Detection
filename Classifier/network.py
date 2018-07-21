@@ -69,24 +69,6 @@ class CNN_STN(nn.Module):
                 nn.Linear(350, n_classes)
                 )
         
-        # Convolutional network
-        #self.conv1 = Conv2d(4, 100, 7, stride=1, padding=1)
-        #self.conv2 = Conv2d(100, 200, 5, stride=1, padding=1)
-        #self.conv3 = Conv2d(200, 300, 5, stride=1, padding=2)
-        
-        # Maxpool
-        #self.maxpool = MaxPool2d(2, 2)
-        
-        # Fully connected network
-        # input units: ( [[[(32-4)/2] -2 ]/ 2] -0)**2 * 300 = 6**2 * 300
-        #               \__________________________/     \
-        #                output tensor size           channels
-        #self.n_units = 6*6*300
-        #self.fc1 = Linear(self.n_units, 350)
-        #self.fc2 = Linear(350, n_classes)
-
-        #self.activation = ReLU()
-        
         # Initialize all layers of CNN
         self.apply(initializer)
         
@@ -112,7 +94,7 @@ class CNN_STN(nn.Module):
         self.fc_loc = nn.Sequential(
             nn.Linear(self.n_units_stn, 350),
             nn.ReLU(True),
-            #nn.Linear(350,2)
+            #nn.Linear(350,2) # in case of only two parameters
             nn.Linear(350,2*3)
         )
         
@@ -137,12 +119,12 @@ class CNN_STN(nn.Module):
     def stn(self, x): 
         """
         The STN forward function. The CNN layers feed into the FC layers, which
-        regress the two parameters for zooming and rotation of the affine
-        transformation matrix (with simplified representation):
-            
-            theta = ( zoom       -rotation    0  ) =  ( r*cos(phi)  -r*sin(phi)  0 )
-                    ( rotation   zoom         0  )    ( r*sin(phi)   r*cos(phi)  0 )  
+        regress the parameters of the affine transformation. 
+        
+            theta = ( a  b  c  ) 
+                    ( d  e  f  )   
                     
+            
         Arguments: input tensor
         """
         
@@ -153,11 +135,17 @@ class CNN_STN(nn.Module):
         # Regress the transformation matrices
         theta = self.fc_loc(temp)
         theta = theta.view(-1,2,3)
+        
         """
+        # We have first tried it with only two paramter and the transformation matrix
+        #
+        #    theta = ( zoom       -rotation    0  ) =  ( r*cos(phi)  -r*sin(phi)  0 )
+        #            ( rotation   zoom         0  )    ( r*sin(phi)   r*cos(phi)  0 )  
+        #
         # Select columns with zoom and rotation paramter per image in batch
         #zoom = theta.narrow(2,0,1)
         #rotation = theta.narrow(2,1,1)
-        
+        #
         # We only allow for zooming and rotation in the trafo
         # Calculate the transformation matrix based on the two-parameter output
         #N_thetas = list(theta.shape)[0]
@@ -169,7 +157,6 @@ class CNN_STN(nn.Module):
 
         #theta = zoom*identity_tensor + rotation*rotation_tensor
         """
-        
         
         
         # Apply the transformation

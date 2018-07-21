@@ -60,8 +60,6 @@ class preprocessor:
             channel = zoom(channel, (yzoom,xzoom))
             channels.append(channel)
         
-        #image = transform.resize(image, (self.xsize_norm, self.ysize_norm), mode="constant")
-        ########### check x and y
         image=np.moveaxis(np.array(channels),(0,1,2),(2,0,1))
     
         # Calculate Canny Edge detector
@@ -120,6 +118,7 @@ class dataset(Dataset):
     It is based on the Dataset class of pytorch.
     It saves a list of all elements of split in datatype image.
     The dataset can be subsampled randomly to decrease the amount of data
+    Also it can be reduced to subset in a controlled way (-> reproducability)
     """
     def __init__(self, filepath, split="train", preproc_size=(32,32), preproc_canny=True):
         """
@@ -214,9 +213,10 @@ class dataset(Dataset):
         per class are selected instead of the full set. If there are less than im_per_class
         images for a class, the maximum number is used. For the testset the first im_per_class images
         are chosen.
+        Remark: It is not really fractional. It chooses the amount based on the (small) first class
         
         Arguments:  im_per_class - no. of images per class
-                    factional - boolean stating whether im_per_class is fractional in [0,1]
+                    fractional - boolean stating whether im_per_class is fractional in [0,1]
                                 i.e. im_per_class=0.8 means 80% of images for True
         """
         # Train subset

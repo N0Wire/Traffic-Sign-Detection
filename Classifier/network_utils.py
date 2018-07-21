@@ -61,6 +61,7 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
         for batch_index, batch in enumerate(tqdm(dataloader, desc='batch', position=0)):
             train_step = batch_index + len(dataloader)*epoch
             
+            # We have tried adaptive stepsizes, which did not work properly                              
             #if epoch == 6:
             #    lr = 0.01
             #    Optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.5, nesterov=True, weight_decay=0.01)
@@ -96,7 +97,7 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
                 predictions, thetas = model(images_batch, skip_stn=False)
                 
                 # Build identity tensor for L1 distance
-                #N_thetas = [*thetas.size()][0]
+                #N_thetas = [*thetas.size()][0]  # python 3 code
                 N_thetas = list(thetas.shape)[0]
                 identity_tensor = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]).repeat((N_thetas,1,1))
                 if use_gpu:
@@ -126,7 +127,7 @@ def train(model, dataloader, n_epochs=10, checkpoint_name='training', use_gpu=Tr
             # Backward propagation
             loss.backward()
             
-            # TESTING: Gradient clipping
+            # UNTESTED: Gradient clipping
             #torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=10)
             
             # Update

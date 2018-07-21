@@ -58,6 +58,8 @@ def import_classifier(pretrained=True):
     return model, logger, stn_grids    
     
 
+# Testing stuff
+
 if __name__ == "__main__":
     filepath_this_file = os.path.dirname(os.path.abspath(__file__))
     project_path,_ = os.path.split(filepath_this_file)
