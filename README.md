@@ -18,6 +18,9 @@ This file does the final evaluation of the combined system. For the trainset of 
 of the Selective Search + SVM are loaded and fed into the CNN+STN classifier. The accuracy is calculated.
 Additionally the result of the STN on some of the bounding boxes is plotted.
 
+# eval_gtsdb.py
+In this file the classifier is tested onto the images of the GTSDB dataset.
+
 # preprocessor_plot.py
 The preprocessor and dataloader is tested. The plot from the project report of the preprocessor result is created.
 
