@@ -67,7 +67,7 @@ plt.ylabel("#Entries")
 plt.hist(best_overlapps, bins=25, label="IoU", edgecolor="black")
 plt.axvline(x=mbo, color="r", label="Mean={:.3f}".format(mbo))
 plt.legend()
-plt.savefig(path_output+"iou_histogram.pdf")
+plt.savefig(path_output+"mbo_svm_histogram.pdf")
 
 plt.figure(2)
 plt.title("Time-Histogram")
