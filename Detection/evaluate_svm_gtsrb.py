@@ -16,8 +16,9 @@ with the test data of the GTSRB dataset.
 ###########################################
 
 #load SVM
+svm_prefix = "11_"
 sc = SignChecker()
-sc.load("SVMs/4_")
+sc.load("SVMs/"+svm_prefix)
 
 path = "../Data/GTSRB/Final_Test/Images/"
 

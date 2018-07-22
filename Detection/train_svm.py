@@ -20,7 +20,7 @@ if not os.path.exists(output_path):
 svm_prefix = "11_"	#SVM prefix
 
 #load all calculated HOG-Descriptors
-load_path = "./Training_data/"
+load_path = "./Train_data/"
 max_run = 60  #only take runs with have the first 600 images of GTSDB as origin
 data = np.load(load_path+"gtsdb.npy")
 for i in range(1,max_run+1):

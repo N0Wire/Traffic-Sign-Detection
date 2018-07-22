@@ -7,6 +7,15 @@ import os
 #own stuff
 import tools
 
+###########################################
+"""
+author: Kim-Louis Simmoteit
+
+This module collects hog descriptors from the GTSRB
+dataset used for training the SVM.
+"""
+###########################################
+
 #create directories if they don't exist
 output_path = "./Train_data/"
 if not os.path.exists(output_path):
