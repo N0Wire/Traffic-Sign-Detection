@@ -83,7 +83,7 @@ class CNN_STN(nn.Module):
                 #nn.MaxPool2d(2, stride=2)
         )
         
-        # input units: ( [[((32/2)-4)/2] -2 ] )**2 * 300 = 4**4 * 300
+        # input units: ( [[((32/2)-4)/2] -2 ] )**2 * 300 = 4**2 * 300
         #               \_______________________/     \
         #             output tensor size           channels
         
